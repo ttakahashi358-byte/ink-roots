@@ -1,0 +1,2151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>インク・ルーツ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=M+PLUS+1p:wght@500;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --orange: #ff7a00; --blue: #2f6bff; --glass: rgba(8, 12, 24, .55); --line: rgba(255,255,255,.14); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05070d; font-family: "M PLUS 1p", system-ui, "Hiragino Sans", sans-serif; color: #fff; user-select: none; }
+  canvas#game { display: block; }
+  .num { font-family: "Orbitron", system-ui, sans-serif; }
+  .hud { position: fixed; pointer-events: none; }
+  .glass { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  #cross { left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; transition: transform .08s; }
+  #cross.hit { transform: scale(1.25); }
+  #cross.hit .tick { stroke: #fff200; }
+  #top { top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 16px; }
+  #scorebar { position: relative; width: 380px; max-width: 42vw; height: 14px; border-radius: 7px; overflow: hidden; display: flex; background: rgba(255,255,255,.12); }
+  #scoreA { background: linear-gradient(90deg,#ff5a00,#ffa040); box-shadow: 0 0 14px var(--orange); }
+  #scoreB { background: linear-gradient(90deg,#5b8cff,#1f4fff); box-shadow: 0 0 14px var(--blue); margin-left: auto; }
+  .pct { font-size: 22px; font-weight: 900; min-width: 54px; text-align: center; }
+  #pctA { color: #ffa24d; text-shadow: 0 0 12px rgba(255,122,0,.7); } #pctB { color: #7ea2ff; text-shadow: 0 0 12px rgba(47,107,255,.7); }
+  #timer { font-size: 24px; font-weight: 900; padding-left: 14px; border-left: 1px solid var(--line); letter-spacing: 1px; }
+  #mapbox { right: 14px; top: 14px; padding: 6px; }
+  #minimap { display: block; width: 240px; height: 160px; border-radius: 8px; }
+  #feed { right: 16px; top: 196px; text-align: right; font-size: 14px; font-weight: 800; line-height: 1.8; text-shadow: 0 2px 6px #000; }
+  #status { left: 16px; bottom: 16px; width: 260px; padding: 12px 14px; }
+  .lbl { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; letter-spacing: 1px; opacity: .85; }
+  .bar { height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; overflow: hidden; margin: 4px 0 10px; }
+  .bar div { height: 100%; width: 100%; border-radius: 4px; }
+  #hpfill { background: linear-gradient(90deg,#27e38a,#9dffc8); box-shadow: 0 0 10px #27e38a; }
+  #inkfill { background: linear-gradient(90deg,#ff5a00,#ffb060); box-shadow: 0 0 10px var(--orange); }
+  #spfill { background: linear-gradient(90deg,#b6ff00,#00ffc8); box-shadow: 0 0 10px #7dffb0; }
+  #spfill.full { animation: pulse .6s infinite alternate; }
+  @keyframes pulse { to { filter: brightness(1.8); } }
+  #weapon { right: 16px; bottom: 16px; padding: 12px 16px; text-align: right; font-size: 13px; line-height: 1.8; }
+  #weapon .wname { font-size: 22px; font-weight: 900; }
+  #toast { top: 24%; left: 50%; transform: translateX(-50%); font-size: 48px; font-weight: 900; opacity: 0; transition: opacity .25s; white-space: nowrap; text-shadow: 0 0 24px rgba(0,0,0,.8), 0 2px 0 #000; letter-spacing: 2px; }
+  #vignette { inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(255,40,40,.5)); opacity: 0; transition: opacity .15s; }
+  html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  canvas#game { touch-action: none; }
+  /* ===== スマホ用タッチ操作 ===== */
+  #touchui { display: none; }
+  body.touch.playing #touchui { display: block; }
+  .tbtn, #joy { position: fixed; touch-action: none; user-select: none; -webkit-user-select: none; z-index: 5; }
+  #joy { left: calc(28px + env(safe-area-inset-left)); bottom: 28px; width: 132px; height: 132px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.08), rgba(255,255,255,.18)); border: 2px solid rgba(255,255,255,.3); }
+  #knob { position: absolute; left: 41px; top: 41px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .tbtn { display: flex; align-items: center; justify-content: center; flex-direction: column; border-radius: 50%; color: #fff; font-weight: 900; font-size: 11px;
+    background: rgba(10,14,28,.5); border: 2px solid rgba(255,255,255,.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .tbtn b { font-size: 22px; line-height: 1.1; }
+  .tbtn.on { background: rgba(255,122,0,.55); border-color: #ffb066; transform: scale(.94); }
+  #tFire { right: calc(26px + env(safe-area-inset-right)); bottom: 34px; width: 96px; height: 96px; border-width: 3px; }
+  #tBomb { right: calc(134px + env(safe-area-inset-right)); bottom: 22px; width: 62px; height: 62px; }
+  #tDive { right: calc(132px + env(safe-area-inset-right)); bottom: 96px; width: 62px; height: 62px; }
+  #tJump { right: calc(40px + env(safe-area-inset-right)); bottom: 142px; width: 62px; height: 62px; }
+  #tSp { right: calc(112px + env(safe-area-inset-right)); bottom: 170px; width: 56px; height: 56px; }
+  #tSp.ready { border-color: #b6ff00; box-shadow: 0 0 18px #7dff00; animation: pulse .6s infinite alternate; }
+  #tPause { left: calc(10px + env(safe-area-inset-left)); top: 10px; width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
+  body.touch #weapon { display: none !important; }
+  body.touch #status { left: auto; right: auto; top: 58px; bottom: auto; left: calc(10px + env(safe-area-inset-left)); width: 140px; padding: 6px 10px; }
+  body.touch #status .bar { margin: 2px 0 5px; height: 6px; }
+  body.touch .lbl { font-size: 10px; }
+  body.touch #top { top: 8px; left: 50%; transform: translateX(-50%); padding: 4px 10px; gap: 8px; }
+  body.touch #scorebar { width: 110px; height: 10px; }
+  body.touch .pct { font-size: 15px; min-width: 38px; }
+  body.touch #timer { font-size: 16px; padding-left: 8px; }
+  body.touch #mapbox { top: 8px; right: calc(8px + env(safe-area-inset-right)); padding: 4px; }
+  body.touch #minimap { width: 132px; height: 88px; }
+  body.touch #feed { top: 108px; font-size: 11px; }
+  body.touch #toast { font-size: 28px !important; }
+  #rotate { display: none; position: fixed; left: 50%; top: 42%; transform: translateX(-50%); z-index: 20; pointer-events: none;
+    background: rgba(0,0,0,.7); padding: 10px 16px; border-radius: 12px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+  @media (orientation: portrait) { body.touch.playing #rotate { display: block; } }
+  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; text-align: center; z-index: 10;
+    background: linear-gradient(180deg, rgba(3,6,14,.2), rgba(3,6,14,.85) 70%); padding: 16px; overflow-y: auto; }
+  .logo-en { font-family: "Orbitron", sans-serif; font-weight: 900; letter-spacing: 12px; font-size: 16px; opacity: .8; margin-bottom: 4px; }
+  #overlay h1 { font-size: 72px; font-weight: 900; margin: 0; line-height: 1.05; letter-spacing: 4px;
+    background: linear-gradient(95deg,#ff7a00 10%,#fff 50%,#2f6bff 90%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 20px rgba(0,0,0,.6)); }
+  .tag { font-size: 18px; margin: 8px 0 18px; letter-spacing: 4px; opacity: .9; }
+  .rule { max-width: 680px; padding: 12px 20px; font-size: 14px; line-height: 1.8; text-align: left; }
+  .rule b { color: #b6ff00; }
+  .cards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+  .card { width: 200px; padding: 16px; cursor: pointer; text-align: left; transition: transform .15s, border-color .15s, box-shadow .15s; }
+  .card:hover { transform: translateY(-5px); border-color: var(--orange); box-shadow: 0 0 30px rgba(255,122,0,.35); }
+  .card .en { font-family: "Orbitron", sans-serif; font-size: 11px; letter-spacing: 3px; color: #ffa24d; }
+  .card h2 { margin: 2px 0 6px; font-size: 22px; }
+  .card p { margin: 0 0 10px; font-size: 12px; opacity: .8; line-height: 1.6; min-height: 58px; }
+  .stat { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; font-size: 11px; margin: 3px 0; opacity: .9; }
+  .stat i { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .stat i b { display: block; height: 100%; background: linear-gradient(90deg,#ff7a00,#ffd000); }
+  .keys { margin-top: 16px; font-size: 12px; opacity: .75; line-height: 1.8; }
+  .btn { display: inline-block; margin: 18px 8px 0; background: linear-gradient(90deg,#ff5a00,#ff9a2e); padding: 12px 34px; border-radius: 12px; font-size: 20px; font-weight: 900; cursor: pointer; box-shadow: 0 0 24px rgba(255,122,0,.4); }
+  .btn.sub { background: rgba(255,255,255,.12); box-shadow: none; border: 1px solid var(--line); }
+  .result { display: flex; gap: 40px; font-size: 30px; font-weight: 900; margin: 18px 0; }
+  @media (max-width: 1150px) { #top { left: 16px; transform: none; } #scorebar { width: 180px; } #status { width: 200px; } }
+  .online { margin-top: 18px; padding: 14px 18px; max-width: 660px; }
+  .online .en, .code-box .en { font-family: "Orbitron", sans-serif; font-size: 12px; letter-spacing: 4px; color: #b6ff00; margin-bottom: 8px; }
+  .row { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; }
+  .row .btn { margin: 0; font-size: 16px; padding: 9px 20px; }
+  .row label, .or { font-size: 13px; opacity: .8; }
+  input { font: inherit; font-size: 16px; font-weight: 800; color: #fff; background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; outline: none; width: 160px; }
+  input:focus { border-color: #ff7a00; }
+  .hint { font-size: 12px; opacity: .7; margin-top: 6px; }
+  .code-box { padding: 12px 30px; margin-bottom: 14px; }
+  .code { font-size: 56px; font-weight: 900; letter-spacing: 14px; color: #fff; text-shadow: 0 0 24px rgba(182,255,0,.6); }
+  .players { padding: 10px 16px; min-width: 320px; text-align: left; }
+  .pl { display: flex; align-items: center; gap: 10px; font-weight: 800; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .pl:last-child { border-bottom: 0; }
+  .pl .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+  .pl .w { margin-left: auto; font-size: 12px; opacity: .7; }
+  .card.sel { border-color: #b6ff00; box-shadow: 0 0 30px rgba(182,255,0,.35); }
+  .ranking { font-size: 14px; line-height: 1.8; min-width: 280px; padding: 8px 16px; margin-top: 10px; text-align: left; }
+  .big { font-family: "Orbitron", sans-serif; font-size: 96px; font-weight: 900; letter-spacing: 8px; line-height: 1; }
+  @media (max-width: 900px), (max-height: 500px) {
+    #overlay h1 { font-size: 40px; }
+    .logo-en { font-size: 12px; letter-spacing: 8px; }
+    .tag { font-size: 14px; margin: 4px 0 10px; }
+    .rule { font-size: 12px; padding: 8px 12px; }
+    .cards { gap: 8px; margin-top: 10px; }
+    .card { width: 150px; padding: 10px; }
+    .card h2 { font-size: 17px; }
+    .card p { font-size: 11px; min-height: 0; }
+    .code { font-size: 40px; }
+    .big { font-size: 56px; }
+    .online { margin-top: 10px; padding: 8px 12px; }
+    .keys { font-size: 11px; margin-top: 8px; }
+    .stat { font-size: 10px; }
+    .result { font-size: 20px; gap: 20px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="hud" id="vignette"></div>
+<svg class="hud" id="cross" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="22" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="3"/>
+  <circle id="inkring" cx="32" cy="32" r="22" fill="none" stroke="#ff7a00" stroke-width="3" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="0" transform="rotate(-90 32 32)"/>
+  <g class="tick" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+    <line x1="32" y1="20" x2="32" y2="26"/><line x1="32" y1="38" x2="32" y2="44"/><line x1="20" y1="32" x2="26" y2="32"/><line x1="38" y1="32" x2="44" y2="32"/>
+  </g>
+  <circle cx="32" cy="32" r="1.8" fill="#fff"/>
+</svg>
+<div class="hud glass" id="top">
+  <div class="pct num" id="pctA">0%</div>
+  <div id="scorebar"><div id="scoreA"></div><div id="scoreB"></div></div>
+  <div class="pct num" id="pctB">0%</div>
+  <div class="num" id="timer">2:30</div>
+</div>
+<div class="hud glass" id="mapbox"><canvas id="minimap" width="240" height="160"></canvas></div>
+<div class="hud" id="feed"></div>
+<div class="hud glass" id="status">
+  <div class="lbl"><span>HP</span><span class="num" id="hpnum">100</span></div><div class="bar"><div id="hpfill"></div></div>
+  <div class="lbl"><span>インク</span><span class="num" id="inknum">100</span></div><div class="bar"><div id="inkfill"></div></div>
+  <div class="lbl"><span>スペシャル [E]</span><span class="num" id="spnum">0</span></div><div class="bar" style="margin-bottom:0"><div id="spfill"></div></div>
+</div>
+<div class="hud glass" id="weapon"></div>
+<div class="hud" id="toast"></div>
+<div id="touchui">
+  <div id="joy"><div id="knob"></div></div>
+  <div class="tbtn" id="tFire"><b>🎯</b>撃つ</div>
+  <div class="tbtn" id="tBomb"><b>💣</b>ボム</div>
+  <div class="tbtn" id="tDive"><b>💧</b>ダイブ</div>
+  <div class="tbtn" id="tJump"><b>⤴</b>ジャンプ</div>
+  <div class="tbtn" id="tSp"><b>🌱</b>SP</div>
+  <div class="tbtn" id="tPause">⏸</div>
+</div>
+<div id="rotate">📱 横向きにすると遊びやすいよ</div>
+<div id="overlay"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ================= レンダラーと光 =================
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.domElement.id = 'game';
+const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+if (isTouch) document.body.classList.add('touch');
+renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1 : 1.5));   // スマホは軽さ優先
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.92;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xd3ecf7, 160, 520);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 2000);
+
+// やわらかいパステルの空（上は水色、地平線はクリーム色）
+const SUN_DIR = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 48), THREE.MathUtils.degToRad(205));
+function makeSkyDome() {
+  return new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { top: { value: new THREE.Color(0x5fb8ee) }, mid: { value: new THREE.Color(0xb9e3f7) }, bottom: { value: new THREE.Color(0xfff4de) } },
+    vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 vDir;
+      void main() {
+        float h = vDir.y;
+        vec3 c = mix(mid, top, smoothstep(0.02, 0.55, h));
+        c = mix(bottom, c, smoothstep(-0.04, 0.14, h));
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  }));
+}
+scene.add(makeSkyDome());
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene();
+envScene.add(makeSkyDome());
+scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xe3f4ff, 0xb5d98f, 1.25));
+const sun = new THREE.DirectionalLight(0xfff0d2, 2.1);
+sun.position.set(30, 0, 20).addScaledVector(SUN_DIR, 70);
+sun.target.position.set(30, 0, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(isTouch ? 1024 : 4096, isTouch ? 1024 : 4096);
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
+Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 1, far: 220 });
+scene.add(sun, sun.target);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight).multiplyScalar(isTouch ? 0.5 : 1), 0.5, 0.4, 1.6);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+const V3 = THREE.Vector3;
+const rand = Math.random;
+const clamp = THREE.MathUtils.clamp;
+const $ = id => document.getElementById(id);
+
+// ================= サウンド =================
+let actx = null, noiseBuf = null;
+function initAudio() {
+  if (actx) return;
+  actx = new AudioContext();
+  noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+function tone(freq, dur, vol, type = 'sine', to = freq, delay = 0) {
+  if (!actx || vol < 0.004) return;
+  const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+}
+function noise(dur, freq, vol) {
+  if (!actx || vol < 0.004) return;
+  const t = actx.currentTime, s = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f).connect(g).connect(actx.destination); s.start(t, rand() * 0.5); s.stop(t + dur);
+}
+const volAt = (pos, base) => player ? base / (1 + pos.distanceTo(player.pos) * 0.15) : 0;
+
+// ================= 手続き生成テクスチャ =================
+function hash2(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function tileNoise(x, y, f) {   // 繰り返してもつなぎ目が出ないノイズ
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const h = (a, b) => hash2(((a % f) + f) % f, ((b % f) + f) % f);
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  return (h(xi, yi) * (1 - u) + h(xi + 1, yi) * u) * (1 - v) + (h(xi, yi + 1) * (1 - u) + h(xi + 1, yi + 1) * u) * v;
+}
+function fbm(x, y, size, octaves = 5, base = 4) {
+  let n = 0, amp = 0.5;
+  for (let o = 0; o < octaves; o++) { const f = base << o; n += tileNoise(x / size * f, y / size * f, f) * amp; amp *= 0.5; }
+  return n;
+}
+// shade(x, y) が [r, g, b, 高さ] を返す。色の絵と、でこぼこ（ノーマルマップ）を一緒に作る
+function makeTextures(size, shade, normalStrength = 2) {
+  const hgt = new Float32Array(size * size);
+  const col = document.createElement('canvas'); col.width = col.height = size;
+  const g = col.getContext('2d'), img = g.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const [r, gg, b, h] = shade(x, y);
+    hgt[y * size + x] = h;
+    const p = (y * size + x) * 4;
+    img.data[p] = r; img.data[p + 1] = gg; img.data[p + 2] = b; img.data[p + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const nrm = document.createElement('canvas'); nrm.width = nrm.height = size;
+  const ng = nrm.getContext('2d'), nimg = ng.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const hl = hgt[y * size + (x - 1 + size) % size], hr = hgt[y * size + (x + 1) % size];
+    const hu = hgt[((y - 1 + size) % size) * size + x], hd = hgt[((y + 1) % size) * size + x];
+    const v = new V3((hl - hr) * normalStrength, (hu - hd) * normalStrength, 1).normalize();
+    const p = (y * size + x) * 4;
+    nimg.data[p] = (v.x * 0.5 + 0.5) * 255; nimg.data[p + 1] = (v.y * 0.5 + 0.5) * 255; nimg.data[p + 2] = (v.z * 0.5 + 0.5) * 255; nimg.data[p + 3] = 255;
+  }
+  ng.putImageData(nimg, 0, 0);
+  const map = new THREE.CanvasTexture(col), normalMap = new THREE.CanvasTexture(nrm);
+  map.colorSpace = THREE.SRGBColorSpace;
+  for (const t of [map, normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
+  return { map, normalMap };
+}
+// 小さな花を点々と置く（cell ごとに1つ候補）
+function flowerAt(x, y, cell, chance) {
+  const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
+  if (hash2(cx + 0.31, cy + 0.77) > chance) return null;
+  const fx = cx * cell + cell / 2 + (hash2(cx, cy) - 0.5) * cell * 0.5, fy = cy * cell + cell / 2 + (hash2(cy, cx) - 0.5) * cell * 0.5;
+  const d = Math.hypot(x - fx, y - fy);
+  if (d > 3.2) return null;
+  const kind = hash2(cx * 1.7, cy * 2.3);
+  const petal = kind < 0.45 ? [255, 255, 250] : kind < 0.75 ? [255, 190, 210] : [255, 235, 140];
+  return { color: d < 1.2 ? [255, 206, 60] : petal, h: 0.35 };
+}
+const grassShade = (x, y) => {
+  const n = fbm(x, y, 512), spk = hash2(x * 0.71, y * 1.13);
+  const patch = fbm(x + 211, y + 97, 512, 3, 2);
+  let k = 0.86 + n * 0.28 + (spk > 0.94 ? 0.07 : spk < 0.05 ? -0.07 : 0);
+  let r = 142 * k, g = 200 * k, b = 104 * k;
+  if (patch > 0.58) { r *= 0.9; g *= 1.02; b *= 1.08; }                 // クローバーの群れ
+  const f = flowerAt(x, y, 32, 0.07);
+  if (f) return [...f.color, n * 0.5 + f.h];
+  return [r, g, b, n * 0.5 + spk * 0.08];
+};
+const leafShade = (x, y) => {
+  const l = tileNoise(x / 256 * 24, y / 256 * 24, 24), n = fbm(x, y, 256, 4);
+  const k = 0.72 + l * 0.42 + n * 0.16;
+  const f = flowerAt(x, y, 28, 0.05);
+  if (f) return [...f.color, l + f.h];
+  return [96 * k, 170 * k, 86 * k, l * 0.9 + n * 0.3];
+};
+const woodShade = (x, y) => {
+  const plank = y % 64 < 3;
+  const grain = tileNoise(x / 256 * 4, y / 256 * 32, 4) * 0.6 + fbm(x, y, 256, 3) * 0.4;
+  const k = plank ? 0.55 : 0.82 + grain * 0.3;
+  return [206 * k, 158 * k, 104 * k, plank ? -0.5 : grain * 0.4];
+};
+const stoneShade = (x, y) => {
+  const n = fbm(x, y, 256), k = 0.82 + n * 0.3;
+  return [214 * k, 206 * k, 190 * k, n];
+};
+const dirtShade = (x, y) => {
+  const n = fbm(x, y, 256), pebble = hash2(x * 0.53, y * 0.29) > 0.975;
+  const k = pebble ? 1.15 : 0.8 + n * 0.3;
+  return [170 * k, 128 * k, 92 * k, n + (pebble ? 0.3 : 0)];
+};
+
+// ================= ステージ =================
+const W = 60, D = 40, CS = 0.25, GW = W / CS, GH = D / CS;
+const TEAM_RGB = [null, [255, 84, 0], [30, 90, 255]];
+const TEAM_HEX = [null, 0xff5400, 0x1e5aff];
+const TEAM_CSS = [null, '#ffa24d', '#7ea2ff'];
+
+const obstacles = [];
+function addObstacle(cx, cz, w, d, h = 2.4) { obstacles.push({ x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, h }); }
+for (const [cx, cz, w, d] of [[13, 10, 3, 6], [13, 30, 3, 6], [21, 20, 2, 8], [24, 5, 6, 2], [24, 35, 6, 2], [8, 20, 2, 2]]) {
+  addObstacle(cx, cz, w, d); addObstacle(W - cx, cz, w, d);
+}
+addObstacle(30, 20, 4, 4, 3.2); addObstacle(30, 10, 2, 2); addObstacle(30, 30, 2, 2);
+
+const owner = new Uint8Array(GW * GH), strength = new Float32Array(GW * GH);
+const blocked = new Uint8Array(GW * GH), baseOf = new Uint8Array(GW * GH), connected = new Uint8Array(GW * GH);
+const CI = (gx, gz) => gx + gz * GW;
+for (let gz = 0; gz < GH; gz++) for (let gx = 0; gx < GW; gx++) {
+  const x = (gx + 0.5) * CS, z = (gz + 0.5) * CS, i = CI(gx, gz);
+  blocked[i] = obstacles.some(o => x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1) ? 1 : 0;
+  baseOf[i] = x < 5 ? 1 : x > W - 5 ? 2 : 0;
+}
+let paintable = 0;
+for (let i = 0; i < blocked.length; i++) if (!blocked[i]) paintable++;
+function cellAt(x, z) {
+  const gx = Math.floor(x / CS), gz = Math.floor(z / CS);
+  return gx < 0 || gz < 0 || gx >= GW || gz >= GH ? -1 : CI(gx, gz);
+}
+
+let texDirty = true;
+function resetGrid() {
+  for (let i = 0; i < owner.length; i++) { owner[i] = baseOf[i]; strength[i] = baseOf[i] ? 1 : 0; }
+  texDirty = true;
+}
+function paintCircle(x, z, r, team) {
+  let n = 0;
+  const g0x = Math.max(0, Math.floor((x - r) / CS)), g1x = Math.min(GW - 1, Math.floor((x + r) / CS));
+  const g0z = Math.max(0, Math.floor((z - r) / CS)), g1z = Math.min(GH - 1, Math.floor((z + r) / CS));
+  const seedA = rand() * 100;
+  for (let gz = g0z; gz <= g1z; gz++) for (let gx = g0x; gx <= g1x; gx++) {
+    const cx = (gx + 0.5) * CS - x, cz = (gz + 0.5) * CS - z;
+    const i = CI(gx, gz);
+    if (blocked[i] || (baseOf[i] && baseOf[i] !== team)) continue;
+    const ang = Math.atan2(cz, cx);
+    const wob = 0.8 + 0.2 * Math.sin(ang * 5 + seedA) + 0.12 * Math.sin(ang * 11 + seedA * 2);   // 飛び散ったような縁
+    if (cx * cx + cz * cz > r * r * wob * wob) continue;
+    if (owner[i] !== team) n++;
+    owner[i] = team; strength[i] = 1;
+  }
+  texDirty = true;
+  return n;
+}
+
+// ---- 新ルール：根（ルーツ）のつながり ----
+function neighbors(i, fn) {
+  const gx = i % GW;
+  if (gx < GW - 1) fn(i + 1);
+  if (gx > 0) fn(i - 1);
+  if (i + GW < owner.length) fn(i + GW);
+  if (i - GW >= 0) fn(i - GW);
+}
+const bfsQueue = new Int32Array(GW * GH);
+function computeConnected() {
+  connected.fill(0);
+  let head = 0, tail = 0;
+  for (let i = 0; i < owner.length; i++) if (baseOf[i]) { connected[i] = 1; bfsQueue[tail++] = i; }
+  while (head < tail) {
+    const i = bfsQueue[head++], t = owner[i];
+    neighbors(i, n => { if (!connected[n] && owner[n] === t && !blocked[n]) { connected[n] = 1; bfsQueue[tail++] = n; } });
+  }
+}
+function tickRoots() {
+  computeConnected();
+  for (let i = 0; i < owner.length; i++) {
+    if (!owner[i] || baseOf[i]) continue;
+    if (connected[i]) strength[i] = Math.min(1, strength[i] + 0.25);
+    else { strength[i] -= 0.025; if (strength[i] <= 0) { owner[i] = 0; strength[i] = 0; } }
+  }
+  const grow = [];
+  for (let i = 0; i < owner.length; i++) {
+    if (!connected[i] || !owner[i]) continue;
+    const t = owner[i];
+    neighbors(i, n => { if (!owner[n] && !blocked[n] && rand() < 0.03) grow.push(n, t); });
+  }
+  for (let k = 0; k < grow.length; k += 2) { owner[grow[k]] = grow[k + 1]; strength[grow[k]] = 0.6; }
+  texDirty = true;
+}
+function rootBurst(e) {
+  paintCircle(e.pos.x, e.pos.z, 4.5, e.team);
+  computeConnected();
+  for (let step = 0; step < 12; step++) {
+    const add = [];
+    for (let i = 0; i < owner.length; i++) {
+      if (owner[i] !== e.team || !connected[i]) continue;
+      const x = (i % GW + 0.5) * CS, z = (Math.floor(i / GW) + 0.5) * CS;
+      if (Math.abs(x - e.pos.x) > 14 || Math.abs(z - e.pos.z) > 14) continue;
+      neighbors(i, n => { if (owner[n] !== e.team && !blocked[n] && !(baseOf[n] && baseOf[n] !== e.team)) add.push(n); });
+    }
+    for (const n of add) { owner[n] = e.team; strength[n] = 1; connected[n] = 1; }
+  }
+  texDirty = true;
+}
+
+// ---- 床：やわらかい芝生 ----
+const grass = makeTextures(512, grassShade, 1.6);
+// アリーナは公園の芝生のように刈り跡のしま模様をつける
+const lawn = makeTextures(512, (x, y) => { const c = grassShade(x, y); const k = x % 512 < 256 ? 1.07 : 0.95; return [c[0] * k, c[1] * k, c[2] * k, c[3]]; }, 1.6);
+lawn.map.repeat.set(W / 6, D / 6); lawn.normalMap.repeat.set(W / 6, D / 6);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: lawn.map, normalMap: lawn.normalMap, roughness: 1, metalness: 0, color: 0xfaffee }));
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(W / 2, 0, D / 2);
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ---- インク：ツヤのある液体の層 ----
+const inkData = new Uint8Array(GW * GH * 4), heightData = new Uint8Array(GW * GH * 4);
+const inkTex = new THREE.DataTexture(inkData, GW, GH, THREE.RGBAFormat);
+inkTex.magFilter = inkTex.minFilter = THREE.LinearFilter;
+inkTex.colorSpace = THREE.SRGBColorSpace;
+const heightTex = new THREE.DataTexture(heightData, GW, GH, THREE.RGBAFormat);
+heightTex.magFilter = heightTex.minFilter = THREE.LinearFilter;
+const inkMat = new THREE.MeshPhysicalMaterial({
+  map: inkTex, alphaTest: 0.5, alphaToCoverage: true, roughness: 0.18, metalness: 0,
+  clearcoat: 0.7, clearcoatRoughness: 0.06, bumpMap: heightTex, bumpScale: 6, envMapIntensity: 0.6,
+});
+const inkLayer = new THREE.Mesh(new THREE.PlaneGeometry(W, D), inkMat);
+inkLayer.rotation.x = -Math.PI / 2;
+inkLayer.position.set(W / 2, 0.012, D / 2);
+inkLayer.receiveShadow = true;
+scene.add(inkLayer);
+
+// ---- 障害物：生け垣・木箱・丸い石・大きな木 ----
+const leafTex = makeTextures(256, leafShade, 2.2);
+const woodTex = makeTextures(256, woodShade, 2);
+const stoneTex = makeTextures(256, stoneShade, 1.5);
+const dirtTex = makeTextures(256, dirtShade, 1.5);
+const texMat = (t, rx, ry, extra = {}) => {
+  const map = t.map.clone(), normalMap = t.normalMap.clone();
+  for (const x of [map, normalMap]) { x.repeat.set(rx, ry); x.needsUpdate = true; }
+  return new THREE.MeshStandardMaterial({ map, normalMap, roughness: 0.95, ...extra });
+};
+const barkMat = new THREE.MeshStandardMaterial({ color: 0x9a6b45, roughness: 1 });
+const petalMats = [0xffffff, 0xffb7d0, 0xffe27a, 0xc9b6ff].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
+const petalGeo = new THREE.SphereGeometry(0.09, 8, 6);
+const shadowed = m => { m.castShadow = m.receiveShadow = true; return m; };
+function addFlowersOn(cx, cz, w, d, h, count) {
+  for (let i = 0; i < count; i++) {
+    const m = new THREE.Mesh(petalGeo, petalMats[i % petalMats.length]);
+    const side = rand();
+    if (side < 0.5) m.position.set(cx + (rand() - 0.5) * (w - 0.5), h + 0.02, cz + (rand() - 0.5) * (d - 0.5));
+    else if (side < 0.75) m.position.set(cx + (rand() < 0.5 ? -1 : 1) * (w / 2 + 0.02), 0.5 + rand() * (h - 0.9), cz + (rand() - 0.5) * (d - 0.6));
+    else m.position.set(cx + (rand() - 0.5) * (w - 0.6), 0.5 + rand() * (h - 0.9), cz + (rand() < 0.5 ? -1 : 1) * (d / 2 + 0.02));
+    m.scale.setScalar(0.8 + rand() * 0.8);
+    scene.add(m);
+  }
+}
+function makeTree(x, y, z, scale, leafColor, fruit) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.scale.setScalar(scale);
+  const trunk = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 3, 10), barkMat));
+  trunk.position.y = 1.5;
+  g.add(trunk);
+  const leaf = new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.9 });
+  for (const [lx, ly, lz, r] of [[0, 3.6, 0, 1.6], [0.9, 3.2, 0.3, 1.1], [-0.8, 3.3, -0.4, 1.2], [0.1, 4.5, -0.2, 1.1]]) {
+    const s = shadowed(new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12), leaf));
+    s.position.set(lx, ly, lz);
+    g.add(s);
+  }
+  if (fruit) for (let i = 0; i < 6; i++) {
+    const a = rand() * Math.PI * 2, f = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), fruit);
+    f.position.set(Math.cos(a) * 1.45, 3.1 + rand() * 1.2, Math.sin(a) * 1.45);
+    g.add(f);
+  }
+  scene.add(g);
+  return g;
+}
+for (const o of obstacles) {
+  const w = o.x1 - o.x0, d = o.z1 - o.z0, cx = (o.x0 + o.x1) / 2, cz = (o.z0 + o.z1) / 2;
+  if (w >= 4 && d >= 4) {
+    // 中央の大きな木（太い幹が当たり判定）
+    const trunk = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.9, 6, 20), texMat(woodTex, 3, 1, { color: 0xb08260 })));
+    trunk.position.set(cx, 3, cz);
+    scene.add(trunk);
+    makeTree(cx, 0, cz, 2.2, 0x8fd46b, new THREE.MeshStandardMaterial({ color: 0xff8a5c, roughness: 0.5 })).children[0].visible = false;
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * Math.PI * 2, m = new THREE.Mesh(petalGeo, petalMats[i % 4]);
+      m.position.set(cx + Math.cos(a) * 2.05, 0.1, cz + Math.sin(a) * 2.05);
+      m.scale.setScalar(1.5);
+      scene.add(m);
+    }
+  } else if (w <= 2 && d <= 2) {
+    if (Math.abs(cx - W / 2) < 1) {
+      // 丸い石
+      const rock = shadowed(new THREE.Mesh(new THREE.DodecahedronGeometry(1.3, 2), texMat(stoneTex, 2, 2)));
+      rock.scale.set(0.8, o.h / 2.3, 0.8);
+      rock.position.set(cx, o.h / 2 - 0.05, cz);
+      rock.rotation.y = rand() * 3;
+      scene.add(rock);
+    } else {
+      // 積み重ねた木箱
+      for (let k = 0; k < 2; k++) {
+        const crate = shadowed(new THREE.Mesh(new RoundedBoxGeometry(w - (k ? 0.15 : 0), o.h / 2, d - (k ? 0.15 : 0), 3, 0.12), texMat(woodTex, 1, 1)));
+        crate.position.set(cx, o.h / 4 + k * o.h / 2, cz);
+        crate.rotation.y = k * 0.2;
+        scene.add(crate);
+      }
+    }
+  } else {
+    // こんもりした生け垣（上に小さな花）
+    const hedge = shadowed(new THREE.Mesh(new RoundedBoxGeometry(w, o.h, d, 4, 0.55), texMat(leafTex, Math.max(w, d) / 2, o.h / 2)));
+    hedge.position.set(cx, o.h / 2, cz);
+    scene.add(hedge);
+    addFlowersOn(cx, cz, w, d, o.h, Math.round((w + d) * 1.5));
+  }
+}
+
+// ---- 島・柵・拠点・草原・木・池・丘・雲 ----
+const island = shadowed(new THREE.Mesh(new RoundedBoxGeometry(W + 2.4, 4, D + 2.4, 4, 0.8), texMat(dirtTex, 12, 2)));
+island.position.set(W / 2, -2.05, D / 2);
+scene.add(island);
+const lip = new THREE.Mesh(new RoundedBoxGeometry(W + 2.6, 0.5, D + 2.6, 3, 0.24), texMat(grass, 10, 7, { roughness: 1 }));
+lip.position.set(W / 2, -0.27, D / 2);
+lip.receiveShadow = true;
+scene.add(lip);
+{
+  // 木の柵
+  const posts = [], fenceWood = new THREE.MeshStandardMaterial({ color: 0xe8d2ae, roughness: 0.9 });
+  for (let x = 0; x <= W; x += 2) posts.push([x - 0.5 * 0, -0.7], [x, D + 0.7]);
+  for (let z = 2; z < D; z += 2) posts.push([-0.7, z], [W + 0.7, z]);
+  const postMesh = new THREE.InstancedMesh(new RoundedBoxGeometry(0.22, 1, 0.22, 2, 0.06), fenceWood, posts.length);
+  posts.forEach(([x, z], i) => postMesh.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x, 0.45, z)));
+  postMesh.castShadow = true;
+  scene.add(postMesh);
+  for (const y of [0.35, 0.72]) for (const [x, z, w, d] of [[W / 2, -0.7, W, 0.08], [W / 2, D + 0.7, W, 0.08], [-0.7, D / 2, 0.08, D + 1.4], [W + 0.7, D / 2, 0.08, D + 1.4]]) {
+    const rail = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), fenceWood));
+    rail.position.set(x, y, z);
+    scene.add(rail);
+  }
+}
+for (const t of [1, 2]) {
+  const col = new THREE.Color(TEAM_HEX[t]);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.4, 0.08, 40), texMat(woodTex, 2, 2));
+  pad.position.set(t === 1 ? 2.5 : W - 2.5, 0.02, D / 2);
+  pad.receiveShadow = true;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.08, 10, 48), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: 0.4 }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(pad.position.x, 0.08, D / 2);
+  scene.add(pad, ring);
+}
+const meadow = new THREE.Mesh(new THREE.CircleGeometry(700, 64), texMat(grass, 180, 180, { roughness: 1, color: 0xc4d9aa }));
+meadow.rotation.x = -Math.PI / 2;
+meadow.position.set(W / 2, -4, D / 2);
+meadow.receiveShadow = true;
+scene.add(meadow);
+const pondMat = new THREE.MeshPhysicalMaterial({ color: 0x7fd3e6, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.9 });
+for (const [x, z, sx, sz] of [[-22, 14, 12, 8], [W + 20, 30, 10, 14], [W / 2 + 6, D + 26, 16, 7]]) {
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(1, 40), pondMat);
+  pond.rotation.x = -Math.PI / 2;
+  pond.scale.set(sx, sz, 1);
+  pond.position.set(x, -3.95, z);
+  scene.add(pond);
+}
+{
+  const leafColors = [0x86cf62, 0x6fbf5a, 0x9edb74, 0xffc4d8, 0xffd2e2];
+  const fruitMat = new THREE.MeshStandardMaterial({ color: 0xff7a5a, roughness: 0.5 });
+  for (let i = 0; i < 46; i++) {
+    const a = rand() * Math.PI * 2, r = 42 + rand() * 90;
+    const x = W / 2 + Math.cos(a) * r * 1.2, z = D / 2 + Math.sin(a) * r;
+    const c = leafColors[Math.floor(rand() * leafColors.length)];
+    makeTree(x, -4, z, 1.6 + rand() * 1.6, c, c < 0xa00000 && rand() < 0.35 ? fruitMat : null);
+  }
+  // 草原の花
+  const count = 700, flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ roughness: 0.8 }), count);
+  const cols = [0xffffff, 0xffb7d0, 0xffe27a, 0xc9b6ff, 0xff9f8a].map(c => new THREE.Color(c));
+  for (let i = 0; i < count; i++) {
+    const a = rand() * Math.PI * 2, r = 36 + rand() * 110;
+    flowers.setMatrixAt(i, new THREE.Matrix4().makeTranslation(W / 2 + Math.cos(a) * r * 1.2, -3.85, D / 2 + Math.sin(a) * r));
+    flowers.setColorAt(i, cols[i % cols.length]);
+  }
+  scene.add(flowers);
+  // 遠くの丘
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x9ccf7c, roughness: 1 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2 + rand() * 0.3, r = 300 + rand() * 120, rad = 70 + rand() * 60;
+    const hill = new THREE.Mesh(new THREE.SphereGeometry(rad, 24, 12), hillMat);
+    hill.scale.y = 0.35 + rand() * 0.2;
+    hill.position.set(W / 2 + Math.cos(a) * r, -12, D / 2 + Math.sin(a) * r);
+    scene.add(hill);
+  }
+}
+// ふわふわの雲
+const clouds = new THREE.Group();
+clouds.position.set(W / 2, 0, D / 2);
+{
+  const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdde8f0, emissiveIntensity: 0.35, roughness: 1 });
+  for (let i = 0; i < 16; i++) {
+    const c = new THREE.Group(), a = rand() * Math.PI * 2, r = 140 + rand() * 220;
+    c.position.set(Math.cos(a) * r, 55 + rand() * 45, Math.sin(a) * r);
+    const n = 5 + Math.floor(rand() * 4);
+    for (let k = 0; k < n; k++) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(6 + rand() * 6, 16, 10), cloudMat);
+      puff.position.set((k - n / 2) * 7 + rand() * 3, rand() * 4, (rand() - 0.5) * 8);
+      puff.scale.y = 0.75;
+      c.add(puff);
+    }
+    c.lookAt(0, c.position.y, 0);
+    clouds.add(c);
+  }
+}
+scene.add(clouds);
+
+// ---- インクの見た目を更新 ----
+const mini = $('minimap').getContext('2d');
+const miniCanvas = document.createElement('canvas');
+miniCanvas.width = GW; miniCanvas.height = GH;
+const miniCtx = miniCanvas.getContext('2d');
+const miniImg = miniCtx.createImageData(GW, GH);
+const score = [0, 0, 0];
+function updateTexture() {
+  score[1] = score[2] = 0;
+  for (let gz = 0; gz < GH; gz++) for (let gx = 0; gx < GW; gx++) {
+    const i = CI(gx, gz), t = owner[i];
+    const p = ((GH - 1 - gz) * GW + gx) * 4, q = (gz * GW + gx) * 4;
+    let r, g, b, a = 0;
+    if (t) {
+      score[t]++;
+      const c = TEAM_RGB[t];
+      let k;
+      if (baseOf[i]) k = 0.9;
+      else if (connected[i]) k = 0.75 + 0.25 * strength[i];
+      else k = 0.35 + 0.3 * strength[i];                       // 切れた根は暗くくすむ
+      const grain = 0.94 + 0.06 * Math.sin(gx * 1.7 + gz * 2.3);
+      r = c[0] * k * grain; g = c[1] * k * grain; b = c[2] * k * grain;
+      if (!connected[i] && !baseOf[i]) { const gray = (r + g + b) / 3; r = r * 0.6 + gray * 0.4; g = g * 0.6 + gray * 0.4; b = b * 0.6 + gray * 0.4; }
+      a = baseOf[i] || connected[i] || strength[i] > 0.3 ? 255 : 150 + strength[i] * 300;
+      inkData[p] = r; inkData[p + 1] = g; inkData[p + 2] = b; inkData[p + 3] = a;
+      miniImg.data[q] = r; miniImg.data[q + 1] = g; miniImg.data[q + 2] = b;
+    } else {
+      inkData[p + 3] = 0;
+      const k = blocked[i] ? 60 : 32;
+      miniImg.data[q] = k; miniImg.data[q + 1] = k + 4; miniImg.data[q + 2] = k + 12;
+    }
+    miniImg.data[q + 3] = 255;
+    heightData[p] = heightData[p + 1] = heightData[p + 2] = a;
+  }
+  // 空マスの色をとなりのインク色にしておく（縁が黒くにじまないように）
+  for (let pass = 0; pass < 2; pass++) for (let p = 0; p < inkData.length; p += 4) {
+    if (inkData[p + 3] > 0) continue;
+    const idx = p / 4, gx = idx % GW;
+    for (const n of [gx < GW - 1 ? p + 4 : -1, gx > 0 ? p - 4 : -1, p + GW * 4, p - GW * 4]) {
+      if (n >= 0 && n < inkData.length && inkData[n + 3] > 0) { inkData[p] = inkData[n]; inkData[p + 1] = inkData[n + 1]; inkData[p + 2] = inkData[n + 2]; break; }
+    }
+  }
+  inkTex.needsUpdate = true; heightTex.needsUpdate = true;
+  texDirty = false;
+}
+function drawMinimap() {
+  miniCtx.putImageData(miniImg, 0, 0);
+  mini.imageSmoothingEnabled = true;
+  mini.clearRect(0, 0, 240, 160);
+  mini.drawImage(miniCanvas, 0, 0, 240, 160);
+  const s = 240 / W;
+  for (const e of entities) {
+    if (!e.alive || (e.team !== player.team && isHidden(e))) continue;
+    const x = e.pos.x * s, z = e.pos.z * s;
+    mini.beginPath(); mini.arc(x, z, e === player ? 5 : 3.5, 0, Math.PI * 2);
+    mini.fillStyle = e === player ? '#fff' : TEAM_CSS[e.team];
+    mini.fill();
+    mini.lineWidth = 1.5; mini.strokeStyle = e === player ? '#ff7a00' : '#000'; mini.stroke();
+    if (e === player) {
+      mini.beginPath(); mini.moveTo(x, z);
+      mini.lineTo(x - Math.sin(e.yaw) * 12, z - Math.cos(e.yaw) * 12);
+      mini.strokeStyle = '#fff'; mini.lineWidth = 2; mini.stroke();
+    }
+  }
+}
+
+// ================= 当たり判定 =================
+function segHitsBox2D(x0, z0, x1, z1, o) {
+  let t0 = 0, t1 = 1;
+  for (const [p, d, lo, hi] of [[x0, x1 - x0, o.x0, o.x1], [z0, z1 - z0, o.z0, o.z1]]) {
+    if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) return false; continue; }
+    let a = (lo - p) / d, b = (hi - p) / d;
+    if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+const lineOfSight = (a, b) => !obstacles.some(o => segHitsBox2D(a.x, a.z, b.x, b.z, o));
+function rayBox3D(o, d, box) {
+  let t0 = 0, t1 = Infinity;
+  for (const [p, v, lo, hi] of [[o.x, d.x, box.x0, box.x1], [o.y, d.y, 0, box.h], [o.z, d.z, box.z0, box.z1]]) {
+    if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
+    let a = (lo - p) / v, b = (hi - p) / v;
+    if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 > t1) return null;
+  }
+  return t0;
+}
+function rayWorld(o, d, max) {
+  let t = max;
+  if (d.y < 0) t = Math.min(t, -o.y / d.y);
+  for (const box of obstacles) { const h = rayBox3D(o, d, box); if (h !== null && h < t) t = h; }
+  return t;
+}
+function collideCircle(e) {
+  const r = 0.4;
+  e.pos.x = clamp(e.pos.x, r, W - r);
+  e.pos.z = clamp(e.pos.z, r, D - r);
+  let hit = false;
+  for (const o of obstacles) {
+    if (e.y >= o.h) continue;
+    const nx = clamp(e.pos.x, o.x0, o.x1), nz = clamp(e.pos.z, o.z0, o.z1);
+    const dx = e.pos.x - nx, dz = e.pos.z - nz, d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) continue;
+    hit = true;
+    if (d2 < 1e-8) {
+      const pushes = [[o.x0 - r - e.pos.x, 0], [o.x1 + r - e.pos.x, 0], [0, o.z0 - r - e.pos.z], [0, o.z1 + r - e.pos.z]];
+      pushes.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
+      e.pos.x += pushes[0][0]; e.pos.z += pushes[0][1];
+    } else {
+      const d = Math.sqrt(d2);
+      e.pos.x = nx + dx / d * r; e.pos.z = nz + dz / d * r;
+    }
+  }
+  return hit;
+}
+
+// ================= キャラクターと武器 =================
+const matCache = {};
+const M = (key, make) => matCache[key] || (matCache[key] = make());
+const glowColor = (hex, k) => new THREE.Color(hex).multiplyScalar(k);
+const SPECIES = [
+  { name: 'ねこ', fur: 0xf6b36e, muzzle: 0xfff4e6, ear: 'cat', tail: 'long', inner: 0xffb3b3 },
+  { name: 'うさぎ', fur: 0xf7f3ee, muzzle: 0xffffff, ear: 'rabbit', tail: 'pom', inner: 0xffb6c8 },
+  { name: 'くま', fur: 0xa0703f, muzzle: 0xecd2a6, ear: 'round', tail: 'pom', inner: 0x7a5230 },
+  { name: 'しば', fur: 0xe8964a, muzzle: 0xfff6ea, ear: 'cat', tail: 'curl', inner: 0xfff0e0 },
+  { name: 'パンダ', fur: 0xf8f8f6, muzzle: 0xffffff, ear: 'round', tail: 'pom', inner: 0x222222, patches: true },
+];
+const speciesOf = id => { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % SPECIES.length; };
+function makeAgent(team, weapon, speciesIndex = 0) {
+  const col = TEAM_HEX[team], sp = SPECIES[speciesIndex];
+  const soft = hex => M('fur' + hex, () => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.95 }));
+  const fur = soft(sp.fur), muzzleMat = soft(sp.muzzle), innerMat = soft(sp.inner);
+  const hoodie = M('hood' + team, () => new THREE.MeshStandardMaterial({ color: col, roughness: 0.8 }));
+  const plastic = M('plastic', () => new THREE.MeshPhysicalMaterial({ color: 0xf4f5f8, roughness: 0.3, clearcoat: 0.8 }));
+  const dark = M('darkplastic', () => new THREE.MeshPhysicalMaterial({ color: 0x3b3f4a, roughness: 0.35, clearcoat: 0.5 }));
+  const eyeMat = M('eyeball', () => new THREE.MeshPhysicalMaterial({ color: 0x15110f, roughness: 0.1, clearcoat: 1 }));
+  const shine = M('shine', () => new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  const blush = M('blush', () => new THREE.MeshBasicMaterial({ color: 0xff8fa3, transparent: true, opacity: 0.55, depthWrite: false }));
+  const black = soft(0x222222);
+  const glow = M('glow' + team, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.2 }));
+  const paint = M('paint' + team, () => new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05 }));
+  const glass = M('glass', () => new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.03, transparent: true, opacity: 0.3, clearcoat: 1 }));
+
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z, parent = g, rot, scale) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    if (rot) m.rotation.set(...rot);
+    if (scale) m.scale.set(...scale);
+    m.castShadow = true; parent.add(m); return m;
+  };
+  const sph = (r, w = 20, h = 14) => new THREE.SphereGeometry(r, w, h);
+  const human = new THREE.Group(); g.add(human);
+
+  // 足
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * 0.12, 0.3, 0); human.add(hip);
+    add(new THREE.CapsuleGeometry(0.085, 0.1, 4, 10), fur, 0, -0.12, 0, hip);
+    add(sph(0.1), fur, 0, -0.24, 0.05, hip, null, [1, 0.6, 1.4]);
+    legs.push(hip);
+  }
+  // 体（チームカラーのパーカー）
+  add(sph(0.25, 24, 18), hoodie, 0, 0.47, 0, human, null, [1, 1.05, 0.9]);
+  add(sph(0.16), muzzleMat, 0, 0.45, 0.13, human, null, [1, 1.1, 0.5]);        // おなか
+  add(new THREE.TorusGeometry(0.17, 0.045, 10, 24), hoodie, 0, 0.7, 0, human, [Math.PI / 2, 0, 0]);   // フード
+  add(new THREE.BoxGeometry(0.2, 0.03, 0.02), glow, 0, 0.36, 0.215, human);   // パーカーの光るライン
+  // 腕
+  for (const s of [-1, 1]) {
+    add(new THREE.CapsuleGeometry(0.06, 0.14, 4, 8), hoodie, s * 0.24, 0.55, 0.1, human, [-1.1, 0, s * -0.3]);
+    add(sph(0.065), fur, s * 0.16, 0.5, 0.26, human);
+  }
+  // 頭
+  const head = new THREE.Group(); head.position.set(0, 0.98, 0); human.add(head);
+  add(sph(0.3, 28, 20), fur, 0, 0, 0, head, null, [1.08, 0.95, 1]);
+  add(sph(0.13), muzzleMat, 0, -0.08, 0.22, head, null, [1.2, 0.8, 0.8]);
+  add(sph(0.035), black, 0, -0.02, 0.325, head, null, [1.3, 0.9, 1]);                 // 鼻
+  for (const s of [-1, 1]) {
+    add(sph(0.05, 16, 12), eyeMat, s * 0.11, 0.05, 0.26, head, null, [1, 1.2, 0.7]);  // 目
+    add(sph(0.016, 8, 6), shine, s * 0.1 + 0.015, 0.075, 0.3, head);                  // 目のハイライト
+    add(new THREE.CircleGeometry(0.05, 16), blush, s * 0.19, -0.07, 0.235, head, [0, s * 0.55, 0]);   // ほっぺ
+    if (sp.patches) add(sph(0.075), black, s * 0.11, 0.04, 0.235, head, null, [1, 1.2, 0.5]);
+    // 耳
+    if (sp.ear === 'cat') {
+      add(new THREE.ConeGeometry(0.1, 0.18, 4), fur, s * 0.17, 0.27, -0.02, head, [0, Math.PI / 4, s * -0.35]);
+      add(new THREE.ConeGeometry(0.055, 0.1, 4), innerMat, s * 0.165, 0.26, 0.02, head, [0, Math.PI / 4, s * -0.35]);
+    } else if (sp.ear === 'rabbit') {
+      add(new THREE.CapsuleGeometry(0.06, 0.28, 4, 10), fur, s * 0.1, 0.4, -0.03, head, [0, 0, s * -0.18]);
+      add(new THREE.CapsuleGeometry(0.03, 0.22, 4, 8), innerMat, s * 0.1, 0.4, 0.02, head, [0, 0, s * -0.18]);
+    } else {
+      add(sph(0.09), sp.patches ? black : fur, s * 0.21, 0.22, -0.02, head, null, [1, 1, 0.6]);
+      add(sph(0.05), innerMat, s * 0.21, 0.22, 0.02, head, null, [1, 1, 0.4]);
+    }
+  }
+  // しっぽ
+  if (sp.tail === 'long') add(new THREE.CapsuleGeometry(0.04, 0.35, 4, 8), fur, 0, 0.4, -0.3, human, [0.9, 0, 0]);
+  else if (sp.tail === 'curl') add(new THREE.TorusGeometry(0.08, 0.04, 8, 16, Math.PI * 1.5), fur, 0, 0.55, -0.24, human, [0, Math.PI / 2, 0]);
+  else add(sph(0.07), fur, 0, 0.32, -0.24, human);
+  // 背中のインクタンク（残量が見える）
+  add(new THREE.CapsuleGeometry(0.07, 0.18, 4, 12), glass, 0, 0.55, -0.24, human);
+  const liquid = add(new THREE.CylinderGeometry(0.055, 0.055, 0.22, 12), glow, 0, 0.55, -0.24, human);
+  add(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 12), plastic, 0, 0.69, -0.24, human);
+  add(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 12), plastic, 0, 0.41, -0.24, human);
+
+  // 武器（おもちゃっぽいデザイン）
+  const wg = new THREE.Group(); wg.position.set(0.05, 0.52, 0.32); human.add(wg);
+  const cyl = (r, len, mat, x, y, z) => add(new THREE.CylinderGeometry(r, r, len, 16), mat, x, y, z, wg, [Math.PI / 2, 0, 0]);
+  if (weapon === 'shooter') {
+    add(new THREE.CapsuleGeometry(0.07, 0.22, 4, 12), paint, 0, 0, 0.05, wg, [Math.PI / 2, 0, 0]);
+    cyl(0.03, 0.14, plastic, 0, 0.01, 0.28);
+    add(sph(0.06), glass, 0, 0.1, -0.02, wg);
+    add(sph(0.045), glow, 0, 0.1, -0.02, wg);
+    add(new THREE.BoxGeometry(0.05, 0.12, 0.06), plastic, 0, -0.09, -0.02, wg, [0.3, 0, 0]);
+  } else if (weapon === 'charger') {
+    add(new THREE.CapsuleGeometry(0.055, 0.35, 4, 12), plastic, 0, 0, 0.12, wg, [Math.PI / 2, 0, 0]);
+    cyl(0.028, 0.38, paint, 0, 0.01, 0.48);
+    for (const z of [0.36, 0.46, 0.56]) add(new THREE.TorusGeometry(0.04, 0.012, 8, 20), glow, 0, 0.01, z, wg);
+    add(new THREE.CapsuleGeometry(0.03, 0.12, 4, 8), dark, 0, 0.09, 0.05, wg, [Math.PI / 2, 0, 0]);
+    add(sph(0.022), glow, 0, 0.09, 0.14, wg);
+  } else {
+    const from = new V3(0, 0, 0), to = new V3(-0.05, -0.33, 0.45);
+    const handle = add(new THREE.CylinderGeometry(0.022, 0.022, from.distanceTo(to), 10), plastic, 0, 0, 0, wg);
+    handle.position.copy(from).lerp(to, 0.5);
+    handle.quaternion.setFromUnitVectors(new V3(0, 1, 0), to.clone().sub(from).normalize());
+    add(new THREE.CylinderGeometry(0.17, 0.17, 0.7, 24), paint, -0.05, -0.34, 0.55, wg, [0, 0, Math.PI / 2]);
+    for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 24), plastic, -0.05 + s * 0.37, -0.34, 0.55, wg, [0, 0, Math.PI / 2]);
+  }
+
+  // ダイブ形態：インクのしずくに耳がちょこん
+  const dive = new THREE.Group(); g.add(dive);
+  add(sph(0.38, 28, 16), paint, 0, 0.16, 0, dive, null, [1, 0.5, 1.3]);
+  for (const s of [-1, 1]) {
+    add(sph(0.05, 12, 8), eyeMat, s * 0.12, 0.25, 0.4, dive);
+    add(sph(0.016, 8, 6), shine, s * 0.12 + 0.012, 0.27, 0.44, dive);
+    add(new THREE.ConeGeometry(0.07, 0.14, 8), paint, s * 0.16, 0.34, 0.1, dive, [0, 0, s * -0.3]);
+  }
+  dive.visible = false;
+  // チャージャーの照準レーザー
+  const laserGeo = new THREE.BufferGeometry();
+  laserGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3));
+  const laser = new THREE.Line(laserGeo, new THREE.LineBasicMaterial({ color: glowColor(col, 4), transparent: true }));
+  laser.frustumCulled = false; laser.visible = false;
+  scene.add(g, laser);
+  return { g, human, head, dive, legs, laser, liquid };
+}
+
+// ================= エンティティ =================
+const WEAPONS = {
+  shooter: { name: 'シューター', en: 'SPLASH RIFLE', desc: '連射でどんどん塗る。扱いやすい万能タイプ。', stats: [0.55, 0.9, 0.6, 0.45] },
+  roller: { name: 'ローラー', en: 'HEAVY ROLLER', desc: '押しながら走ると太い道を塗る。ぶつかった敵をつぶす。短くクリックでまき散らし。', stats: [0.25, 0.4, 1, 0.9] },
+  charger: { name: 'チャージャー', en: 'ROOT CHARGER', desc: 'ためて放つ長距離ビーム。一直線に「根」を伸ばすのが得意。', stats: [1, 0.2, 0.55, 1] },
+};
+let entities = [], projectiles = [], player = null, time = 0;
+
+// ctrl: 'local'＝自分, 'remote'＝オンラインの相手, 'bot'＝AI
+function makeEntity(team, weapon, ctrl, name, id) {
+  return { id, team, weapon, ctrl, name, aim: new V3(), netPos: new V3(), netY: 0, netYaw: 0, remote: null, lastBombN: 0, lastSpecialN: 0, pos: new V3(), vel: new V3(), y: 0, vy: 0, onGround: true, yaw: 0, hp: 100, ink: 100, special: 0,
+    alive: true, respawnT: 0, lastHit: -9, lastShot: -9, cd: 0, bombCd: 0, hold: 0, charge: 0, rolling: false, prevFire: false, diving: false,
+    blocked: false, mesh: makeAgent(team, weapon, speciesOf(id)), walk: 0, kills: 0,
+    ai: { think: 0, target: null, stuckT: 0, lastPos: new V3(), strafe: 1, wantCharge: 0.5 } };
+}
+function spawn(e) {
+  e.pos.set(e.team === 1 ? 2.5 : W - 2.5, 0, D / 2 + (rand() - 0.5) * 3);
+  e.vel.set(0, 0, 0); e.y = 0; e.vy = 0;
+  e.hp = 100; e.ink = 100; e.alive = true; e.charge = 0; e.hold = 0;
+  e.yaw = e.team === 1 ? -Math.PI / 2 : Math.PI / 2;
+  e.aim.set(W / 2, 0, e.pos.z);
+  e.ai.target = null;
+}
+function muzzleOf(e) {
+  const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw), rx = Math.cos(e.yaw), rz = -Math.sin(e.yaw);
+  return new V3(e.pos.x + fx * 0.65 + rx * 0.05, e.y + 0.55, e.pos.z + fz * 0.65 + rz * 0.05);
+}
+const onOwnInk = e => { const c = cellAt(e.pos.x, e.pos.z); return c >= 0 && owner[c] === e.team; };
+const onEnemyInk = e => { const c = cellAt(e.pos.x, e.pos.z); return c >= 0 && owner[c] && owner[c] !== e.team; };
+const isHidden = e => e.diving && onOwnInk(e) && time - e.lastShot > 1;
+
+const blobGeo = new THREE.SphereGeometry(0.1, 10, 8);
+const blobMats = [null, 1, 2].map(t => t && new THREE.MeshStandardMaterial({ color: TEAM_HEX[t], emissive: TEAM_HEX[t], emissiveIntensity: 2.5 }));
+const dropMats = [null, 1, 2].map(t => t && new THREE.MeshPhysicalMaterial({ color: TEAM_HEX[t], roughness: 0.1, clearcoat: 1 }));
+function spawnBlob(e, dir, speed, dmg, paintR, spread, kind = 'blob') {
+  const d = dir.clone();
+  d.x += (rand() - .5) * spread; d.y += (rand() - .5) * spread * 0.4; d.z += (rand() - .5) * spread;
+  d.normalize();
+  const mesh = new THREE.Mesh(blobGeo, blobMats[e.team]);
+  if (kind === 'bomb') {
+    mesh.geometry = M('bombGeo', () => new THREE.IcosahedronGeometry(0.2, 1));
+    mesh.material = dropMats[e.team];
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), blobMats[e.team]);
+    mesh.add(core);
+    mesh.castShadow = true;
+  }
+  const p = { kind, pos: muzzleOf(e), vel: d.multiplyScalar(speed), team: e.team, owner: e, dmg, paintR, life: 0, dripT: 0, fuse: -1, mesh };
+  mesh.position.copy(p.pos);
+  scene.add(mesh);
+  projectiles.push(p);
+}
+
+const effects = [];
+function splash(pos, team, n = 6, spd = 4) {
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(blobGeo, dropMats[team]);
+    m.position.copy(pos);
+    m.scale.setScalar(0.5 + rand() * 0.8);
+    scene.add(m);
+    effects.push({ m, v: new V3((rand() - .5) * spd, rand() * spd, (rand() - .5) * spd), life: 0.4 + rand() * 0.3 });
+  }
+}
+function beam(a, b, team) {
+  const len = a.distanceTo(b);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 8), new THREE.MeshBasicMaterial({ color: glowColor(TEAM_HEX[team], 6), transparent: true }));
+  m.position.copy(a).lerp(b, 0.5);
+  m.quaternion.setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize());
+  scene.add(m);
+  effects.push({ m, beam: true, life: 0.22 });
+}
+function blast(pos, team, r) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: glowColor(TEAM_HEX[team], 2.5), transparent: true, opacity: 0.6, depthWrite: false }));
+  m.position.copy(pos);
+  scene.add(m);
+  effects.push({ m, blast: r, life: 0.3 });
+  splash(pos, team, 14, 8);
+}
+function updateEffects(dt) {
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const e = effects[i];
+    e.life -= dt;
+    if (e.v) { e.v.y -= 18 * dt; e.m.position.addScaledVector(e.v, dt); if (e.m.position.y < 0.02) { e.m.position.y = 0.02; e.v.set(0, 0, 0); } }
+    if (e.beam) e.m.material.opacity = e.life / 0.22;
+    if (e.blast) { e.m.scale.setScalar(e.blast * (1 - e.life / 0.3) + 0.3); e.m.material.opacity = e.life * 2; }
+    if (e.life <= 0) {
+      scene.remove(e.m);
+      if (e.beam || e.blast) { e.m.geometry.dispose(); e.m.material.dispose(); }
+      effects.splice(i, 1);
+    }
+  }
+}
+
+// ================= ダメージ =================
+const feed = [];
+function addFeed(html) {
+  feed.unshift(html);
+  if (feed.length > 5) feed.pop();
+  $('feed').innerHTML = feed.join('<br>');
+}
+let crossTimer;
+function damage(target, amount, by) {
+  if (!target.alive) return;
+  target.hp -= amount;
+  target.lastHit = time;
+  if (target !== by) emit({ t: 'hit', by: by.id });
+  emit({ t: 'hurt', who: target.id });
+  if (target.hp <= 0) {
+    target.alive = false;
+    target.respawnT = 4;
+    target.diving = false;
+    by.kills++;
+    paintCircle(target.pos.x, target.pos.z, 1.8, by.team);
+    emit({ t: 'blast', x: target.pos.x, y: 0.9, z: target.pos.z, team: by.team, r: 2.2, snd: 900 });
+    const nm = e => `<span style="color:${TEAM_CSS[e.team]}">${escapeHtml(e.name)}</span>`;
+    emit({ t: 'feed', html: `${nm(by)} <span style="opacity:.7">✦</span> ${nm(target)}` });
+    emit({ t: 'toast', to: target.id, msg: 'やられた！ 4秒後に復活', ms: 1800, size: 34 });
+    emit({ t: 'toast', to: by.id, msg: 'SPLAT!', ms: 700, size: 44 });
+  }
+}
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+
+// ---- イベント：ホストで起きたことを全員の画面で再生する ----
+let netEvents = [];
+function emit(ev) {
+  if (net.mode === 'host') netEvents.push(ev);
+  applyEvent(ev);
+}
+function applyEvent(ev) {
+  switch (ev.t) {
+    case 'hit':
+      if (player && ev.by === player.id) {
+        $('cross').classList.add('hit');
+        clearTimeout(crossTimer);
+        crossTimer = setTimeout(() => $('cross').classList.remove('hit'), 90);
+        tone(1500, 0.04, 0.07);
+      }
+      break;
+    case 'hurt':
+      if (player && ev.who === player.id) {
+        $('vignette').style.opacity = 1;
+        setTimeout(() => $('vignette').style.opacity = 0, 120);
+        tone(200, 0.08, 0.1, 'square', 130);
+      }
+      break;
+    case 'blast': {
+      const p = new V3(ev.x, ev.y, ev.z);
+      blast(p, ev.team, ev.r);
+      noise(0.5, ev.snd || 400, volAt(p, 0.6));
+      break;
+    }
+    case 'beam':
+      beam(new V3(...ev.a), new V3(...ev.b), ev.team);
+      splash(new V3(...ev.b), ev.team, 5, 4);
+      tone(1800, 0.18, volAt(new V3(...ev.a), 0.15), 'sawtooth', 300);
+      break;
+    case 'feed': addFeed(ev.html); break;
+    case 'toast': if (player && ev.to === player.id) toast(ev.msg, ev.ms, ev.size); break;
+    case 'special': tone(250, 0.7, volAt(new V3(ev.x, 0, ev.z), 0.35), 'sawtooth', 1200); break;
+  }
+}
+
+// ================= エンティティ更新 =================
+function stepEntity(e, inp, dt) {
+  if (!e.alive) {
+    e.respawnT -= dt;
+    if (e.respawnT <= 0) spawn(e);
+    return;
+  }
+  const own = onOwnInk(e), enemyInk = onEnemyInk(e);
+  e.diving = inp.dive && e.onGround && e.charge === 0;
+  let speed = e.diving ? (own ? 9.5 : 2.4) : enemyInk ? 3 : 5.2;
+  if (e.rolling) speed = enemyInk ? 2.5 : 4.4;
+  if (e.charge > 0) speed = 2.4;
+  const acc = Math.min(1, dt * 12);
+  e.vel.x += (inp.mx * speed - e.vel.x) * acc;
+  e.vel.z += (inp.mz * speed - e.vel.z) * acc;
+  e.pos.x += e.vel.x * dt;
+  e.pos.z += e.vel.z * dt;
+  e.blocked = collideCircle(e);
+  if (inp.jump && e.onGround) { e.vy = 7; e.onGround = false; }
+  e.vy -= 22 * dt; e.y += e.vy * dt;
+  if (e.y <= 0) { e.y = 0; e.vy = 0; e.onGround = true; }
+
+  if (e.diving && own) e.ink = Math.min(100, e.ink + 55 * dt);
+  else if (time - e.lastShot > 0.6) e.ink = Math.min(100, e.ink + 9 * dt);
+  if (enemyInk && e.onGround && e.hp > 45) e.hp -= 12 * dt;
+  if (time - e.lastHit > 1.5) e.hp = Math.min(100, e.hp + 30 * dt);
+
+  const target = Math.atan2(-(inp.aim.x - e.pos.x), -(inp.aim.z - e.pos.z));
+  let dy = target - e.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  e.yaw += dy * Math.min(1, dt * 18);
+
+  e.aim.copy(inp.aim);
+  const muzzle = muzzleOf(e);
+  const dir = inp.aim.clone().sub(muzzle).normalize();
+  e.cd -= dt; e.bombCd -= dt;
+  const released = e.prevFire && !inp.fire;
+  e.prevFire = inp.fire;
+  e.rolling = false;
+  const gain = n => { e.special = Math.min(100, e.special + n * 0.025); };
+
+  if (!e.diving) {
+    if (e.weapon === 'shooter') {
+      if (inp.fire && e.cd <= 0 && e.ink >= 1.2) {
+        spawnBlob(e, dir, 24, 24, 0.95, 0.07);
+        e.cd = 0.09; e.ink -= 1.2; e.lastShot = time;
+        noise(0.06, 2400, volAt(e.pos, 0.12));
+      }
+    } else if (e.weapon === 'roller') {
+      if (inp.fire) e.hold += dt;
+      if (inp.fire && e.hold > 0.22 && e.ink > 0) {
+        e.rolling = true;
+        const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw);
+        if (Math.hypot(e.vel.x, e.vel.z) > 1) {
+          e.ink -= 6 * dt; e.lastShot = time;
+          const cx = e.pos.x + fx * 0.75, cz = e.pos.z + fz * 0.75;
+          let n = 0;
+          for (const k of [-1, -0.5, 0, 0.5, 1]) n += paintCircle(cx + fz * k * 0.8, cz - fx * k * 0.8, 0.45, e.team);
+          gain(n);
+        }
+        for (const o of entities) {
+          if (o.team === e.team || !o.alive) continue;
+          const rx = o.pos.x - e.pos.x, rz = o.pos.z - e.pos.z;
+          const along = rx * fx + rz * fz, side = Math.abs(rx * fz - rz * fx);
+          if (along > 0 && along < 1.5 && side < 1.0 && Math.abs(o.y - e.y) < 1) damage(o, 400 * dt, e);
+        }
+      }
+      if (released) {
+        if (e.hold <= 0.22 && e.ink >= 9 && e.cd <= 0) {
+          for (let k = -3; k <= 3; k++) {
+            const a = k * 0.12, d2 = new V3(dir.x * Math.cos(a) - dir.z * Math.sin(a), dir.y + 0.25, dir.x * Math.sin(a) + dir.z * Math.cos(a));
+            spawnBlob(e, d2, 15, 35, 1.1, 0.05);
+          }
+          e.ink -= 9; e.cd = 0.45; e.lastShot = time;
+          noise(0.18, 1200, volAt(e.pos, 0.3));
+        }
+        e.hold = 0;
+      }
+    } else if (e.weapon === 'charger') {
+      if (inp.fire && e.ink >= 4) e.charge = Math.min(1, e.charge + dt / 0.85);
+      if (!inp.fire && e.charge > 0) {
+        if (e.charge > 0.08) fireCharger(e, muzzle, dir, gain);
+        e.charge = 0;
+      }
+    }
+    if (inp.bomb && e.ink >= 50 && e.bombCd <= 0) {
+      const d2 = dir.clone(); d2.y += 0.45; d2.normalize();
+      spawnBlob(e, d2, 13, 0, 3.2, 0, 'bomb');
+      e.ink -= 50; e.bombCd = 1; e.lastShot = time;
+    }
+    if (inp.special && e.special >= 100) {
+      e.special = 0;
+      rootBurst(e);
+      emit({ t: 'blast', x: e.pos.x, y: 0.4, z: e.pos.z, team: e.team, r: 6, snd: 300 });
+      emit({ t: 'special', x: e.pos.x, z: e.pos.z });
+      emit({ t: 'toast', to: e.id, msg: 'ROOT BURST!', ms: 1200, size: 48 });
+      emit({ t: 'feed', html: `<span style="color:${TEAM_CSS[e.team]}">${escapeHtml(e.name)}</span> 🌱 ルートバースト` });
+    }
+  } else { e.charge = 0; e.hold = 0; }
+}
+
+// 見た目（ホストでもゲストでも毎フレーム）
+function updateVisual(e, dt) {
+  const m = e.mesh;
+  m.g.visible = e.alive;
+  m.laser.visible = false;
+  if (!e.alive) return;
+  const own = onOwnInk(e);
+  m.g.position.set(e.pos.x, e.y, e.pos.z);
+  m.g.rotation.y = e.yaw + Math.PI;
+  m.human.visible = !e.diving;
+  m.dive.visible = e.diving;
+  if (e.diving) { m.dive.scale.set(1, own ? 0.3 : 1, 1); m.dive.position.y = own ? -0.04 : 0; }
+  const moving = Math.hypot(e.vel.x, e.vel.z) > 0.5;
+  e.walk += moving ? dt * Math.hypot(e.vel.x, e.vel.z) * 2.2 : 0;
+  const sw = moving ? Math.sin(e.walk) * 0.6 : 0;
+  m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
+  m.human.position.y = moving && e.onGround ? Math.abs(Math.cos(e.walk)) * 0.06 : 0;
+  const lv = Math.max(0.03, e.ink / 100);
+  m.liquid.scale.y = lv; m.liquid.position.y = 0.55 - 0.11 + 0.11 * lv;
+  m.head.rotation.z = moving ? Math.sin(e.walk * 0.5) * 0.08 : Math.sin(time * 2 + e.pos.x) * 0.04;   // 頭をゆらゆら
+  m.laser.visible = e.charge > 0;
+  if (e.charge > 0) {
+    const muzzle = muzzleOf(e), dir = e.aim.clone().sub(muzzle).normalize();
+    const t = rayWorld(muzzle, dir, 8 + 22 * e.charge);
+    const end = muzzle.clone().addScaledVector(dir, t);
+    m.laser.geometry.attributes.position.array.set([muzzle.x, muzzle.y, muzzle.z, end.x, end.y, end.z]);
+    m.laser.geometry.attributes.position.needsUpdate = true;
+    m.laser.material.opacity = 0.25 + 0.75 * e.charge;
+  }
+}
+
+function fireCharger(e, muzzle, dir, gain) {
+  const c = e.charge;
+  e.ink -= 3 + 15 * c; e.lastShot = time;
+  let tEnd = rayWorld(muzzle, dir, 8 + 22 * c), hitE = null;
+  for (const o of entities) {
+    if (o.team === e.team || !o.alive) continue;
+    const w = new V3(o.pos.x, o.y + 0.65, o.pos.z).sub(muzzle);
+    const t = w.dot(dir);
+    if (t < 0 || t > tEnd) continue;
+    if (w.addScaledVector(dir, -t).length() < 0.6) { tEnd = t; hitE = o; }
+  }
+  const end = muzzle.clone().addScaledVector(dir, tEnd);
+  let n = 0;
+  for (let s = 0.6; s < tEnd; s += 0.3) { const p = muzzle.clone().addScaledVector(dir, s); n += paintCircle(p.x, p.z, 0.4, e.team); }
+  n += paintCircle(end.x, end.z, 1.1, e.team);
+  gain(n);
+  if (hitE) damage(hitE, c >= 1 ? 100 : 30 + 55 * c, e);
+  emit({ t: 'beam', a: muzzle.toArray(), b: end.toArray(), team: e.team });
+}
+
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.life += dt;
+    let remove = false;
+    const gain = n => { p.owner.special = Math.min(100, p.owner.special + n * 0.025); };
+    if (p.kind === 'bomb') {
+      p.mesh.rotation.x += dt * 6; p.mesh.rotation.y += dt * 4;
+      if (p.fuse >= 0) {
+        p.fuse -= dt;
+        p.mesh.scale.setScalar(1 + Math.sin(p.life * 40) * 0.2);
+        if (p.fuse <= 0) {
+          gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team));
+          emit({ t: 'blast', x: p.pos.x, y: p.pos.y, z: p.pos.z, team: p.team, r: 3.2, snd: 350 });
+          for (const o of entities) {
+            if (o.team === p.team || !o.alive) continue;
+            const d = Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z);
+            if (d < 3.2 && lineOfSight(p.pos, o.pos)) damage(o, d < 1.2 ? 100 : 70 * (1 - d / 3.2) + 15, p.owner);
+          }
+          remove = true;
+        }
+      } else {
+        p.vel.y -= 22 * dt;
+        p.pos.addScaledVector(p.vel, dt);
+        for (const o of obstacles) {
+          if (p.pos.x > o.x0 && p.pos.x < o.x1 && p.pos.z > o.z0 && p.pos.z < o.z1 && p.pos.y < o.h) {
+            p.pos.addScaledVector(p.vel, -dt); p.vel.x *= -0.3; p.vel.z *= -0.3;
+          }
+        }
+        if (p.pos.y <= 0.2) { p.pos.y = 0.2; p.vel.set(0, 0, 0); p.fuse = 0.7; }
+      }
+    } else {
+      if (p.life > 0.16) p.vel.y -= 32 * dt;
+      p.pos.addScaledVector(p.vel, dt);
+      p.dripT -= dt;
+      if (p.dripT <= 0 && p.pos.y < 3) { p.dripT = 0.08; gain(paintCircle(p.pos.x, p.pos.z, 0.3, p.team)); }
+      for (const o of entities) {
+        if (o.team === p.team || !o.alive) continue;
+        if (Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z) < 0.5 && p.pos.y > o.y - 0.1 && p.pos.y < o.y + (o.diving ? 0.6 : 1.45)) {
+          damage(o, p.dmg, p.owner);
+          splash(p.pos, p.team, 4);
+          remove = true; break;
+        }
+      }
+      if (!remove && (p.pos.y <= 0 || obstacles.some(o => p.pos.x > o.x0 && p.pos.x < o.x1 && p.pos.z > o.z0 && p.pos.z < o.z1 && p.pos.y < o.h))) {
+        gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team));
+        if (rand() < 0.3) splash(new V3(p.pos.x, 0.05, p.pos.z), p.team, 2, 2.5);
+        remove = true;
+      }
+    }
+    if (p.pos.x < -5 || p.pos.x > W + 5 || p.pos.z < -5 || p.pos.z > D + 5 || p.pos.y < -3) remove = true;
+    if (remove) { scene.remove(p.mesh); projectiles.splice(i, 1); }
+    else p.mesh.position.copy(p.pos);
+  }
+}
+
+// ================= AI =================
+function chooseTarget(b) {
+  let best = null, bestScore = Infinity;
+  for (let k = 0; k < 24; k++) {
+    const gx = Math.floor(rand() * GW), gz = Math.floor(rand() * GH), i = CI(gx, gz);
+    if (blocked[i] || owner[i] === b.team) continue;
+    const x = (gx + 0.5) * CS, z = (gz + 0.5) * CS;
+    let s = Math.hypot(x - b.pos.x, z - b.pos.z);
+    if (owner[i]) s -= connected[i] ? 10 : 4;          // 敵の生きた根を切りに行く
+    for (const dd of [4, -4, 4 * GW, -4 * GW]) {
+      const n = i + dd;
+      if (n >= 0 && n < owner.length && owner[n] === b.team && connected[n]) { s -= 8; break; }   // 自分の根の先を伸ばす
+    }
+    s += rand() * 6;
+    if (s < bestScore) { bestScore = s; best = new V3(x, 0, z); }
+  }
+  b.ai.target = best || new V3(W / 2, 0, D / 2);
+}
+function botInput(b, dt) {
+  const ai = b.ai;
+  const inp = { mx: 0, mz: 0, aim: new V3(), fire: false, bomb: false, special: false, dive: false, jump: false };
+  if (!b.alive) return inp;
+  let foe = null, fd = 16;
+  for (const o of entities) {
+    if (o.team === b.team || !o.alive || isHidden(o)) continue;
+    const d = Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z);
+    if (d < fd && lineOfSight(b.pos, o.pos)) { fd = d; foe = o; }
+  }
+  ai.think -= dt;
+  ai.stuckT += dt;
+  if (ai.stuckT > 1) {
+    if (ai.lastPos.distanceTo(b.pos) < 0.5 && !foe) chooseTarget(b);
+    ai.lastPos.copy(b.pos); ai.stuckT = 0;
+  }
+  if (ai.think <= 0) {
+    ai.think = 0.5 + rand() * 0.7;
+    if (rand() < 0.3) ai.strafe *= -1;
+    if (!ai.target || Math.hypot(ai.target.x - b.pos.x, ai.target.z - b.pos.z) < 1.5) chooseTarget(b);
+    ai.wantCharge = 0.4 + rand() * 0.5;
+  }
+  const move = (tx, tz, k = 1) => { const d = Math.hypot(tx, tz) || 1; inp.mx += tx / d * k; inp.mz += tz / d * k; };
+
+  if (foe) {
+    const dx = foe.pos.x - b.pos.x, dz = foe.pos.z - b.pos.z;
+    inp.aim.set(foe.pos.x + foe.vel.x * 0.15, foe.y + 0.65, foe.pos.z + foe.vel.z * 0.15);
+    const want = b.weapon === 'charger' ? 14 : b.weapon === 'roller' ? 0 : 6;
+    if (fd > want + 2) move(dx, dz); else if (fd < want - 2) move(-dx, -dz);
+    move(-dz * ai.strafe, dx * ai.strafe, b.weapon === 'roller' ? 0.2 : 0.8);
+    if (b.weapon === 'shooter') inp.fire = fd < 11 && b.ink > 2;
+    else if (b.weapon === 'roller') inp.fire = fd < 7 || b.hold > 0;
+    else inp.fire = b.charge < (fd < 8 ? 0.5 : 1) && b.ink > 5;
+    if (b.ink > 70 && fd > 4 && fd < 11 && rand() < dt * 0.4) inp.bomb = true;
+    if (b.special >= 100 && rand() < dt) inp.special = true;
+  } else {
+    if (!ai.target) chooseTarget(b);
+    const t = ai.target;
+    if (b.ink < 12) b.retreat = true;
+    if (b.retreat) {
+      if (onOwnInk(b)) { inp.dive = true; if (b.ink > 90) b.retreat = false; }
+      else move((b.team === 1 ? 0 : W) - b.pos.x, 0);
+      inp.aim.set(b.pos.x - Math.sin(b.yaw) * 5, 0, b.pos.z - Math.cos(b.yaw) * 5);
+    } else {
+      const tx = t.x - b.pos.x, tz = t.z - b.pos.z, d = Math.hypot(tx, tz);
+      move(tx, tz);
+      if (b.blocked) move(-tz * ai.strafe, tx * ai.strafe, 1.2);
+      const ahead = b.weapon === 'roller' ? 1.5 : b.weapon === 'charger' ? Math.min(d, 18) : Math.min(d, 5);
+      inp.aim.set(b.pos.x + tx / (d || 1) * ahead, 0, b.pos.z + tz / (d || 1) * ahead);
+      if (d > 10 && onOwnInk(b) && b.weapon !== 'roller') inp.dive = true;
+      else if (b.weapon === 'charger') inp.fire = b.charge < ai.wantCharge;
+      else inp.fire = true;
+      if (b.ink > 85 && rand() < dt * 0.15) inp.bomb = true;
+      if (b.special >= 100 && rand() < dt * 0.5) inp.special = true;
+    }
+  }
+  const l = Math.hypot(inp.mx, inp.mz);
+  if (l > 1) { inp.mx /= l; inp.mz /= l; }
+  return inp;
+}
+
+// ================= プレイヤー操作 =================
+const keys = {};
+let mouseDown = false, bombQueued = false, specialQueued = false;
+let camYaw = -Math.PI / 2, camPitch = 0.3;
+function playerInput() {
+  const inp = { mx: 0, mz: 0, aim: new V3(), fire: mouseDown || touch.fire, bomb: bombQueued, special: specialQueued,
+    dive: !!(keys.ShiftLeft || keys.ShiftRight) || touch.dive, jump: !!keys.Space || performance.now() < touch.jumpUntil };
+  if (bombQueued) net.inputN.bomb++;
+  if (specialQueued) net.inputN.special++;
+  bombQueued = specialQueued = false;
+  let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.jx, iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.jy;
+  const l = Math.hypot(ix, iz);
+  if (l > 1) { ix /= l; iz /= l; }
+  const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
+  inp.mx = rx * ix - fx * iz; inp.mz = rz * ix - fz * iz;
+  const dir = new V3();
+  camera.getWorldDirection(dir);
+  const minT = camera.position.distanceTo(new V3(player.pos.x, player.y + 1.1, player.pos.z)) + 1;
+  inp.aim.copy(camera.position).addScaledVector(dir, Math.max(minT, rayWorld(camera.position, dir, 45)));
+  if (paused) { inp.mx = inp.mz = 0; inp.fire = inp.dive = inp.jump = false; }
+  return inp;
+}
+let shake = 0;
+function updateCamera() {
+  const p = player;
+  const rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
+  const tgt = new V3(p.pos.x + rx * 0.55, p.y + 1.25, p.pos.z + rz * 0.55);
+  const back = new V3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch));
+  let dist = 3.6;
+  for (const o of obstacles) { const h = rayBox3D(tgt, back, o); if (h !== null && h < dist) dist = Math.max(0.7, h - 0.2); }
+  camera.position.copy(tgt).addScaledVector(back, dist);
+  camera.position.y = Math.max(0.25, camera.position.y);
+  camera.lookAt(tgt);
+  camera.fov += ((p.diving && onOwnInk(p) ? 78 : p.charge > 0 ? 55 : 68) - camera.fov) * 0.12;   // ダイブ中は広く、チャージ中はズーム
+  camera.updateProjectionMatrix();
+}
+
+// ================= 試合の流れ =================
+const MATCH = 150;
+let state = 'title', paused = false, matchLeft = MATCH, rootT = 0, chosenWeapon = 'shooter';
+const testMode = location.hash === '#test';
+const BOT_NAMES = [null, ['ミカン', 'ポンカン', 'ユズ', 'ダイダイ'], ['ソーダ', 'ラムネ', 'アオイ', 'サファイア']];
+const WEAPON_KEYS = ['shooter', 'roller', 'charger'];
+let myName = (() => { try { return localStorage.getItem('inkroots-name') || ''; } catch { return ''; } })();
+
+function clearAll() {
+  for (const e of entities) scene.remove(e.mesh.g, e.mesh.laser);
+  for (const p of projectiles) scene.remove(p.mesh);
+  entities = []; projectiles = []; feed.length = 0; $('feed').innerHTML = '';
+}
+// 人間の参加者リストから、チーム分けとAIの補充をした名簿を作る
+function buildRoster(humans) {
+  const roster = [], count = [0, 0, 0];
+  humans.slice(0, 8).forEach((h, i) => {
+    const team = i % 2 === 0 ? 1 : 2;
+    roster.push({ id: h.id, name: h.name, weapon: h.weapon, team, ctrl: 'human' });
+    count[team]++;
+  });
+  for (const team of [1, 2]) for (let k = 0; count[team] < 4; k++) {
+    roster.push({ id: `bot${team}-${k}`, name: BOT_NAMES[team][k], weapon: WEAPON_KEYS[(k + team) % 3], team, ctrl: 'bot' });
+    count[team]++;
+  }
+  return roster;
+}
+function setupFromRoster(roster, myId) {
+  clearAll();
+  resetGrid();
+  const idx = [0, 0, 0];
+  for (const r of roster) {
+    const e = makeEntity(r.team, r.weapon, r.ctrl === 'bot' ? 'bot' : r.id === myId ? 'local' : 'remote', r.name, r.id);
+    spawn(e);
+    e.pos.z = 8 + idx[r.team]++ * 8;
+    e.aim.z = e.pos.z;
+    e.netPos.copy(e.pos); e.netYaw = e.yaw;
+    entities.push(e);
+  }
+  player = entities.find(e => e.id === myId) || null;
+  camYaw = player?.team === 2 ? Math.PI / 2 : -Math.PI / 2; camPitch = 0.3;
+  matchLeft = MATCH; rootT = 0; time = 0;
+  netEvents = [];
+  net.inputN = { bomb: 0, special: 0 };
+}
+function overlay(html) { $('overlay').innerHTML = html; $('overlay').style.display = html ? 'flex' : 'none'; }
+function setHud(show) {
+  for (const id of ['cross', 'top', 'mapbox', 'feed', 'status', 'weapon']) $(id).style.display = show ? '' : 'none';
+  document.body.classList.toggle('playing', show);
+}
+function weaponCards(selected) {
+  const statNames = ['射程', '連射', '塗り', '威力'];
+  return Object.entries(WEAPONS).map(([k, w]) => `<div class="card glass${k === selected ? ' sel' : ''}" data-w="${k}">
+    <div class="en">${w.en}</div><h2>${w.name}</h2><p>${w.desc}</p>
+    ${w.stats.map((v, i) => `<div class="stat"><span>${statNames[i]}</span><i><b style="width:${v * 100}%"></b></i></div>`).join('')}
+  </div>`).join('');
+}
+function showTitle() {
+  state = 'title';
+  document.exitPointerLock?.();
+  netClose();
+  setupFromRoster(buildRoster([]), null);
+  setHud(false);
+  overlay(`<div class="logo-en">INK ROOTS</div><h1>インク・ルーツ</h1><div class="tag">つなげて広げろ。切って枯らせ。</div>
+    <div class="rule glass">🎨 自分のインクで地面を塗り合う <b>4 vs 4</b> バトル。<br>
+    🌱 塗った色は<b>「根」</b>。スタート地点と<b>つながっている間、じわじわ勝手に広がる</b>。<br>
+    ✂️ 敵に途中を塗られて<b>つながりが切れると、その先の色はくすんで枯れていく</b>。<br>
+    👉 ただ広く塗るより「根元を切る」「自分の道を守る」が勝負のカギ。</div>
+    <div class="cards">${weaponCards()}</div>
+    <div class="online glass">
+      <div class="en">ONLINE BATTLE</div>
+      <div class="row"><label>なまえ</label><input id="nameIn" maxlength="10" value="${escapeHtml(myName)}" placeholder="プレイヤー名"></div>
+      <div class="row"><span class="btn" data-a="host">ルームを作る</span><span class="or">または</span>
+        <input id="codeIn" maxlength="4" placeholder="コード4文字" style="width:120px;text-transform:uppercase"><span class="btn sub" data-a="join">参加する</span></div>
+      <div class="hint">武器カードを押すと、ひとりでAIと対戦。友達と遊ぶときは「ルームを作る」でコードを伝えよう。</div>
+    </div>
+    <div class="keys">${isTouch
+      ? '左のスティック：移動　画面の右側をなぞる：ねらう　🎯：撃つ（押したままなぞってもねらえる）<br>💧ダイブ：自分の色の上で高速移動・インク回復　💣ボム　🌱スペシャル　📱横向きがおすすめ'
+      : 'WASD：移動　マウス：ねらう　左クリック：撃つ　右クリック・Q：ボム　E：スペシャル<br>Shift：ダイブ（自分の色の上で高速移動・インク回復・敵から見えにくい）　スペース：ジャンプ'}</div>`);
+}
+function startSolo(weapon) {
+  chosenWeapon = weapon;
+  net.mode = 'offline';
+  setupFromRoster(buildRoster([{ id: 'me', name: readName(), weapon }]), 'me');
+  beginPlay(false);
+}
+function beginPlay(needClick) {
+  state = 'play'; paused = true;
+  setHud(true);
+  const w = WEAPONS[player.weapon];
+  $('weapon').innerHTML = `<div class="num" style="font-size:11px;letter-spacing:3px;color:${TEAM_CSS[player.team]}">${w.en}</div><div class="wname">${w.name}</div>右クリック / Q：ボム（インク50）<br>Shift：ダイブ　E：ルートバースト`;
+  if (needClick && !testMode) {
+    overlay(`<div class="logo-en">MATCH START</div><h1>試合開始！</h1>
+      <div class="tag">あなたは <b style="color:${TEAM_CSS[player.team]}">${player.team === 1 ? 'オレンジ' : 'ブルー'}</b> チーム</div>
+      <div><span class="btn" data-a="enter">クリックして参戦</span></div>`);
+  } else lock();
+}
+// マウス固定（ポインターロック）は使えれば使うが、断られてもそのまま遊べるようにする
+let wasLocked = false, lockWarned = false;
+function lock() {
+  paused = false;
+  overlay('');
+  if (time < 1) toast('READY... GO!', 1000);
+  if (isTouch) {
+    // スマホは全画面にして、ブラウザのバーで画面が狭くならないようにする
+    try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })?.catch?.(() => {}); } catch {}
+    return;
+  }
+  if (!testMode) tryPointerLock(true);
+}
+function tryPointerLock(warn) {
+  const fail = () => {
+    if (!warn || lockWarned || state !== 'play') return;
+    lockWarned = true;
+    toast('マウス固定なしで操作します（Escで一時停止）', 2200, 22);
+  };
+  try {
+    const p = renderer.domElement.requestPointerLock();
+    if (p && p.catch) p.catch(fail);
+  } catch { fail(); }
+}
+function pauseGame() {
+  paused = true; mouseDown = false;
+  touch.fire = touch.dive = false; touch.jx = touch.jy = 0; touch.looks.clear();
+  document.querySelectorAll('.tbtn.on').forEach(b => b.classList.remove('on'));
+  $('knob').style.transform = '';
+  overlay(net.mode === 'offline'
+    ? '<div class="logo-en">PAUSED</div><h1>一時停止</h1><div><span class="btn" data-a="resume">再開</span><span class="btn sub" data-a="title">タイトルへ</span></div>'
+    : '<div class="logo-en">ONLINE</div><h1>操作を離れています</h1><div class="tag">試合は続いています</div><div><span class="btn" data-a="resume">戻る</span><span class="btn sub" data-a="title">退出</span></div>');
+}
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement === renderer.domElement) {
+    wasLocked = true;
+    if (state === 'play') { paused = false; overlay(''); }
+  } else if (state === 'play' && wasLocked) {
+    wasLocked = false;
+    pauseGame();
+  }
+});
+$('overlay').addEventListener('click', e => {
+  initAudio();
+  if (e.target.closest('input')) return;
+  const w = e.target.closest('[data-w]')?.dataset.w, a = e.target.closest('[data-a]')?.dataset.a;
+  if (w) {
+    chosenWeapon = w;
+    if (state === 'lobby') {
+      if (net.mode === 'host') { net.lobby[0].weapon = w; broadcastLobby(); }
+      else net.conn?.send({ t: 'weapon', w });
+    } else startSolo(w);
+  }
+  if (a === 'host') hostRoom();
+  if (a === 'join') joinRoom();
+  if (a === 'start') hostStart();
+  if (a === 'lobby') hostBackToLobby();
+  if (a === 'resume' || a === 'enter') lock();
+  if (a === 'retry') startSolo(chosenWeapon);
+  if (a === 'title') showTitle();
+});
+function endMatch() {
+  state = 'end';
+  document.exitPointerLock?.();
+  if (texDirty) updateTexture();
+  const a = score[1], b = score[2], total = a + b || 1;
+  const pa = (a / paintable * 100).toFixed(1), pb = (b / paintable * 100).toFixed(1);
+  const myTeam = player?.team || 1;
+  const win = myTeam === 1 ? a > b : b > a;
+  tone(win ? 523 : 392, 0.2, 0.25, 'triangle'); tone(win ? 784 : 262, 0.5, 0.25, 'triangle', win ? 784 : 262, 0.2);
+  const ranking = [...entities].sort((x, y) => y.kills - x.kills).slice(0, 8)
+    .map(e => `<div class="pl"><span class="dot" style="background:${TEAM_CSS[e.team]}"></span>${escapeHtml(e.name)}${e === player ? '（あなた）' : ''}<span class="w num">${e.kills} SPLAT</span></div>`).join('');
+  const buttons = net.mode === 'offline'
+    ? '<span class="btn" data-a="retry">もう一度</span><span class="btn sub" data-a="title">武器を変える</span>'
+    : net.mode === 'host'
+      ? '<span class="btn" data-a="lobby">ロビーに戻る</span><span class="btn sub" data-a="title">解散</span>'
+      : '<div class="tag">ホストがロビーに戻るのを待っています…</div><span class="btn sub" data-a="title">退出</span>';
+  overlay(`<div class="big" style="color:${win ? '#b6ff00' : '#ff6b6b'};text-shadow:0 0 40px ${win ? '#7dff00' : '#ff2020'}">${win ? 'VICTORY' : a === b ? 'DRAW' : 'DEFEAT'}</div>
+    <div class="result"><span style="color:#ffa24d">オレンジ <span class="num">${pa}%</span></span><span style="color:#7ea2ff">ブルー <span class="num">${pb}%</span></span></div>
+    <div id="scorebar" style="width:460px;max-width:80vw;height:18px"><div style="background:linear-gradient(90deg,#ff5a00,#ffa040);width:${a / total * 100}%"></div><div style="background:linear-gradient(90deg,#5b8cff,#1f4fff);flex:1"></div></div>
+    <div class="ranking glass">${ranking}</div>
+    <div>${buttons}</div>`);
+}
+
+// ================= オンライン対戦（PeerJS / P2P） =================
+// ホストが試合をすべて計算し、参加者は入力を送って結果を受け取る
+const PEER_PREFIX = 'inkroots-v1-';
+const PEER_OPTS = { config: { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478'] }] } };
+// P2Pでつながらないときの予備：公開MQTTブローカーを中継に使う
+const MQTT_URLS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
+const topicOf = (code, dir) => `inkroots/v1/${code}/${dir}`;
+function relayConnect(onReady, onFail, urlIndex = 0) {
+  if (typeof mqtt === 'undefined') { onFail(); return; }
+  const c = mqtt.connect(MQTT_URLS[urlIndex], { connectTimeout: 6000, reconnectPeriod: 2000 });
+  let state = 'wait';
+  const fail = () => {
+    if (state !== 'wait') return;
+    state = 'failed';
+    try { c.end(true); } catch {}
+    if (urlIndex + 1 < MQTT_URLS.length) relayConnect(onReady, onFail, urlIndex + 1); else onFail();
+  };
+  c.on('connect', () => { if (state === 'wait') { state = 'ok'; onReady(c); } });
+  c.on('error', fail);
+  setTimeout(fail, 8000);
+}
+function b64(bytes) {
+  let str = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) str += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(str);
+}
+function unb64(str) {
+  const bin = atob(str), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+const TYPED = { F32: Float32Array, U32: Uint32Array, U8: Uint8Array };
+const encodeMsg = msg => JSON.stringify(msg, (k, v) => ArrayBuffer.isView(v)
+  ? { __b: v instanceof Float32Array ? 'F32' : v instanceof Uint32Array ? 'U32' : 'U8', d: b64(new Uint8Array(v.buffer, v.byteOffset, v.byteLength)) } : v);
+const decodeMsg = str => JSON.parse(str, (k, v) => v && v.__b && TYPED[v.__b] ? new TYPED[v.__b](unb64(v.d).buffer) : v);
+const net = { mode: 'offline', peer: null, relay: null, relays: [], token: null, conns: new Map(), conn: null, myId: null, code: '', lobby: [], sendT: 0, pingT: 0, hostSeen: 0,
+  inputN: { bomb: 0, special: 0 }, lastPacked: null, p2pOk: false, relayOk: false };
+function readName() {
+  const v = ($('nameIn')?.value ?? myName ?? '').trim().slice(0, 10) || 'プレイヤー';
+  myName = v;
+  try { localStorage.setItem('inkroots-name', v); } catch {}
+  return v;
+}
+function netClose() {
+  const peer = net.peer, relays = [net.relay, ...net.relays];
+  net.mode = 'offline'; net.peer = null; net.relay = null; net.relays = []; net.token = null; net.conn = null; net.conns = new Map(); net.lobby = [];
+  net.p2pOk = net.relayOk = false;
+  try { peer?.destroy(); } catch {}
+  for (const r of relays) try { r?.end(true); } catch {}
+}
+function netStatus(msg) {
+  overlay(`<div class="logo-en">ONLINE</div><h1 style="font-size:40px">${msg}</h1><div><span class="btn sub" data-a="title">もどる</span></div>`);
+}
+function makeCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 4 }, () => A[Math.floor(rand() * A.length)]).join('');
+}
+const asTyped = (x, T) => x instanceof T ? x : x instanceof ArrayBuffer ? new T(x) : ArrayBuffer.isView(x) ? new T(x.buffer.slice(x.byteOffset, x.byteOffset + x.byteLength)) : new T(x || []);
+
+function hostRoom() {
+  const name = readName();
+  netClose();
+  const token = net.token = {};
+  net.code = makeCode();
+  net.mode = 'host'; net.myId = 'host';
+  net.lobby = [{ id: 'host', name, weapon: chosenWeapon }];
+  state = 'lobby';
+  renderLobby();
+  // P2P（PeerJS）
+  if (typeof Peer !== 'undefined') {
+    const peer = new Peer(PEER_PREFIX + net.code, PEER_OPTS);
+    net.peer = peer;
+    peer.on('open', () => { if (net.token === token) { net.p2pOk = true; renderLobby(); } });
+    peer.on('connection', conn => {
+      conn.on('open', () => net.conns.set(conn.peer, conn));
+      conn.on('data', d => hostOnData(conn, d));
+      conn.on('close', () => hostDrop(conn.peer));
+    });
+    peer.on('error', err => { if (net.token === token && err.type === 'unavailable-id') hostRoom(); });
+  }
+  // 中継（MQTT）：参加者がどのブローカーにつないでも届くよう、ホストは全部で待ち受ける
+  for (const url of MQTT_URLS) {
+    if (typeof mqtt === 'undefined') break;
+    const c = mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 3000 });
+    c.once('connect', () => {
+    if (net.token !== token) { c.end(true); return; }
+    net.relays.push(c);
+    c.subscribe(topicOf(net.code, 'up'), () => { net.relayOk = true; renderLobby(); });
+    c.on('message', (topic, payload) => {
+      if (net.token !== token) return;
+      let d;
+      try { d = decodeMsg(payload.toString()); } catch { return; }
+      const id = String(d?.from || '');
+      if (!id) return;
+      let conn = net.conns.get(id);
+      if (!conn) {
+        if (d.t !== 'hello') return;
+        conn = { peer: id, open: true, relay: c, send: m => c.publish(topicOf(net.code, 'down'), encodeMsg({ ...m, to: id })) };
+        net.conns.set(id, conn);
+      }
+      conn.lastSeen = performance.now();
+      hostOnData(conn, d);
+    });
+    });
+    c.on('error', () => {});
+  }
+}
+function hostOnData(conn, d) {
+  if (!d || typeof d !== 'object') return;
+  const id = conn.peer;
+  if (d.t === 'hello') {
+    if (state !== 'lobby') { conn.send({ t: 'reject', msg: '試合中です。終わってから入ってね' }); return; }
+    if (net.lobby.length >= 8 && !net.lobby.some(p => p.id === id)) { conn.send({ t: 'reject', msg: 'ルームが満員です' }); return; }
+    net.lobby = net.lobby.filter(p => p.id !== id);
+    net.lobby.push({ id, name: String(d.name || 'ゲスト').slice(0, 10), weapon: WEAPON_KEYS.includes(d.weapon) ? d.weapon : 'shooter' });
+    broadcastLobby();
+    toast(`${String(d.name || 'ゲスト').slice(0, 10)} が参加しました`, 1200, 24);
+  } else if (d.t === 'weapon' && WEAPON_KEYS.includes(d.w)) {
+    const p = net.lobby.find(p => p.id === id);
+    if (p) { p.weapon = d.w; broadcastLobby(); }
+  } else if (d.t === 'in') {
+    const e = entities.find(e => e.id === id);
+    if (e && e.ctrl === 'remote') e.remote = d;
+  }
+  if (conn.relay) conn.lastSeen = performance.now();
+}
+function hostDrop(id) {
+  if (!net.conns.has(id)) return;
+  net.conns.delete(id);
+  if (state === 'lobby') { net.lobby = net.lobby.filter(p => p.id !== id); broadcastLobby(); }
+  else {
+    net.lobby = net.lobby.filter(p => p.id !== id);
+    const e = entities.find(e => e.id === id);
+    if (e) { e.ctrl = 'bot'; emit({ t: 'feed', html: `${escapeHtml(e.name)} が切断（AIが代わりに操作）` }); }
+  }
+}
+function broadcast(msg) {
+  const brokers = new Set();
+  for (const c of net.conns.values()) {
+    if (!c.open) continue;
+    if (c.relay) brokers.add(c.relay); else c.send(msg);
+  }
+  if (brokers.size) { const payload = encodeMsg(msg); for (const b of brokers) b.publish(topicOf(net.code, 'down'), payload); }
+}
+function broadcastLobby() { broadcast({ t: 'lobby', code: net.code, players: net.lobby }); renderLobby(); }
+function renderLobby() {
+  if (state !== 'lobby') return;
+  const me = net.lobby.find(p => p.id === net.myId);
+  overlay(`<div class="logo-en">ONLINE LOBBY</div>
+    <div class="code-box glass"><div class="en">ROOM CODE</div><div class="code num">${escapeHtml(net.code)}</div>
+      <div class="hint">このコードを友達に伝えよう（最大8人・足りない分はAIが入ります）</div>
+      ${net.mode === 'host' ? `<div class="hint">通信：P2P ${net.p2pOk ? '✅' : '⏳'}　中継 ${net.relayOk ? '✅' : '⏳'}</div>`
+        : `<div class="hint">接続方式：${net.conn?.relay ? '中継サーバー経由' : 'P2P（直接）'}</div>`}</div>
+    <div class="players glass">${net.lobby.map((p, i) => `<div class="pl"><span class="dot" style="background:${i % 2 === 0 ? '#ff5400' : '#1e5aff'}"></span>
+      ${escapeHtml(p.name)}${p.id === 'host' ? ' 👑' : ''}${p.id === net.myId ? '（あなた）' : ''}<span class="w">${WEAPONS[p.weapon]?.name || ''}</span></div>`).join('')}</div>
+    <div class="cards">${weaponCards(me?.weapon)}</div>
+    <div>${net.mode === 'host' ? '<span class="btn" data-a="start">試合開始</span>' : '<div class="tag">ホストが試合を始めるのを待っています…</div>'}
+      <span class="btn sub" data-a="title">退出</span></div>`);
+}
+function packGrid() {
+  const out = new Uint8Array(owner.length);
+  for (let i = 0; i < owner.length; i++) out[i] = owner[i] | (Math.round(strength[i] * 3) << 2);
+  return out;
+}
+function unpackCell(i, b) { owner[i] = b & 3; strength[i] = (b >> 2) / 3; }
+function hostStart() {
+  const roster = buildRoster(net.lobby);
+  setupFromRoster(roster, 'host');
+  net.lastPacked = packGrid();
+  broadcast({ t: 'start', roster, grid: net.lastPacked.slice() });
+  net.sendT = 0;
+  beginPlay(false);
+}
+function hostBackToLobby() {
+  state = 'lobby';
+  setupFromRoster(buildRoster([]), null);
+  setHud(false);
+  net.lobby = net.lobby.filter(p => p.id === 'host' || net.conns.has(p.id));
+  broadcastLobby();
+}
+function hostSend() {
+  const ents = new Float32Array(entities.length * 16);
+  entities.forEach((e, k) => ents.set([e.pos.x, e.pos.z, e.y, e.yaw, e.vel.x, e.vel.z, e.hp, e.ink, e.special, e.alive ? 1 : 0, e.diving ? 1 : 0, e.charge, e.aim.x, e.aim.y, e.aim.z, e.kills], k * 16));
+  const proj = new Float32Array(projectiles.length * 5);
+  projectiles.forEach((p, k) => proj.set([p.kind === 'bomb' ? 1 : 0, p.team, p.pos.x, p.pos.y, p.pos.z], k * 5));
+  const packed = packGrid(), diff = [];
+  for (let i = 0; i < packed.length; i++) if (packed[i] !== net.lastPacked[i]) diff.push(i * 256 + packed[i]);
+  net.lastPacked = packed;
+  broadcast({ t: 'snap', ents, proj, diff: new Uint32Array(diff), left: matchLeft, ev: netEvents });
+  netEvents = [];
+}
+function remoteInput(e) {
+  const r = e.remote;
+  const inp = { mx: 0, mz: 0, aim: e.aim.clone(), fire: false, bomb: false, special: false, dive: false, jump: false };
+  if (!r) return inp;
+  inp.mx = +r.mx || 0; inp.mz = +r.mz || 0;
+  const l = Math.hypot(inp.mx, inp.mz);
+  if (l > 1) { inp.mx /= l; inp.mz /= l; }
+  if (Array.isArray(r.a)) inp.aim.set(+r.a[0] || 0, +r.a[1] || 0, +r.a[2] || 0);
+  inp.fire = !!r.f; inp.dive = !!r.d; inp.jump = !!r.j;
+  if (r.b !== e.lastBombN) { inp.bomb = r.b > e.lastBombN; e.lastBombN = r.b; }
+  if (r.s !== e.lastSpecialN) { inp.special = r.s > e.lastSpecialN; e.lastSpecialN = r.s; }
+  return inp;
+}
+
+function joinRoom() {
+  const code = ($('codeIn')?.value || '').trim().toUpperCase();
+  if (code.length !== 4) { toast('4文字のコードを入れてね', 1200, 28); return; }
+  const name = readName();
+  netClose();
+  const token = net.token = {};
+  netStatus('接続中…');
+  let settled = false;
+  const hello = () => net.conn.send({ t: 'hello', name, weapon: chosenWeapon });
+  const useRelay = () => {
+    if (settled || net.token !== token) return;
+    settled = true;
+    try { net.peer?.destroy(); } catch {}
+    net.peer = null; net.conn = null;
+    netStatus('中継サーバー経由で接続中…');
+    const key = 'r' + Math.random().toString(36).slice(2, 10);
+    relayConnect(c => {
+      if (net.token !== token) { c.end(true); return; }
+      net.relay = c; net.myId = key; net.code = code;
+      c.on('message', (topic, payload) => {
+        if (net.token !== token) return;
+        let d;
+        try { d = decodeMsg(payload.toString()); } catch { return; }
+        if (!d || (d.to && d.to !== key)) return;
+        net.hostSeen = performance.now();
+        net.mode = 'client';
+        clientOnData(d);
+      });
+      c.subscribe(topicOf(code, 'down'), () => {
+        net.conn = { open: true, relay: true, send: m => c.publish(topicOf(code, 'up'), encodeMsg({ ...m, from: key })) };
+        hello();
+        setTimeout(() => { if (net.token === token && net.mode !== 'client') netStatus('ルームが見つかりません'); }, 9000);
+      });
+    }, () => { if (net.token === token) netStatus('接続できませんでした'); });
+  };
+  if (typeof Peer === 'undefined') { useRelay(); return; }
+  // まずP2P（遅延が少ない）を試し、6秒でつながらなければ中継へ
+  const peer = new Peer(PEER_OPTS);
+  net.peer = peer;
+  const timer = setTimeout(useRelay, 6000);
+  peer.on('open', myId => {
+    if (settled || net.token !== token) return;
+    const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+    net.conn = conn;
+    conn.on('open', () => {
+      if (settled || net.token !== token) { conn.close(); return; }
+      settled = true;
+      clearTimeout(timer);
+      net.mode = 'client'; net.myId = myId; net.code = code;
+      hello();
+    });
+    conn.on('data', d => { if (net.token === token) clientOnData(d); });
+    conn.on('close', () => {
+      if (net.token !== token || net.conn !== conn) return;
+      showTitle();
+      toast('ホストとの接続が切れました', 2200, 28);
+    });
+  });
+  peer.on('error', () => { if (!settled) { clearTimeout(timer); useRelay(); } });
+}
+function clientOnData(d) {
+  if (!d || typeof d !== 'object') return;
+  switch (d.t) {
+    case 'reject': { const msg = escapeHtml(d.msg); netClose(); netStatus(msg); break; }
+    case 'ping': break;
+    case 'lobby':
+      net.lobby = d.players; net.code = d.code;
+      if (state !== 'lobby') { document.exitPointerLock?.(); state = 'lobby'; setupFromRoster(buildRoster([]), null); setHud(false); }
+      renderLobby();
+      break;
+    case 'start': {
+      setupFromRoster(d.roster, net.myId);
+      const g = asTyped(d.grid, Uint8Array);
+      for (let i = 0; i < g.length && i < owner.length; i++) unpackCell(i, g[i]);
+      computeConnected(); texDirty = true;
+      beginPlay(true);
+      break;
+    }
+    case 'snap': if (state === 'play') applySnap(d); break;
+    case 'end': if (state === 'play') endMatch(); break;
+  }
+}
+function applySnap(d) {
+  const E = asTyped(d.ents, Float32Array);
+  entities.forEach((e, k) => {
+    const o = k * 16;
+    if (o + 16 > E.length) return;
+    e.netPos.set(E[o], 0, E[o + 1]); e.netY = E[o + 2]; e.netYaw = E[o + 3];
+    e.vel.set(E[o + 4], 0, E[o + 5]);
+    e.hp = E[o + 6]; e.ink = E[o + 7]; e.special = E[o + 8];
+    const alive = E[o + 9] > 0.5;
+    if (alive && !e.alive) { e.pos.copy(e.netPos); e.y = e.netY; e.yaw = e.netYaw; }   // 復活地点へはワープ
+    e.alive = alive; e.diving = E[o + 10] > 0.5; e.charge = E[o + 11];
+    e.aim.set(E[o + 12], E[o + 13], E[o + 14]); e.kills = E[o + 15];
+  });
+  const P = asTyped(d.proj, Float32Array), n = Math.floor(P.length / 5);
+  while (projectiles.length < n) { const mesh = new THREE.Mesh(blobGeo, blobMats[1]); scene.add(mesh); projectiles.push({ mesh }); }
+  while (projectiles.length > n) scene.remove(projectiles.pop().mesh);
+  for (let k = 0; k < n; k++) {
+    const o = k * 5, bomb = P[o] > 0.5, team = P[o + 1] > 1.5 ? 2 : 1, mesh = projectiles[k].mesh;
+    mesh.material = bomb ? dropMats[team] : blobMats[team];
+    mesh.geometry = bomb ? M('bombGeo', () => new THREE.IcosahedronGeometry(0.2, 1)) : blobGeo;
+    mesh.position.set(P[o + 2], P[o + 3], P[o + 4]);
+  }
+  const diff = asTyped(d.diff, Uint32Array);
+  if (diff.length) {
+    for (const v of diff) { const i = Math.floor(v / 256); if (i < owner.length) unpackCell(i, v & 255); }
+    computeConnected();
+    texDirty = true;
+  }
+  matchLeft = +d.left || 0;
+  if (Array.isArray(d.ev)) for (const ev of d.ev) applyEvent(ev);
+}
+function clientTick(dt) {
+  const inp = state === 'play' && player ? playerInput() : null;
+  net.sendT -= dt;
+  if (inp && net.sendT <= 0 && net.conn?.open) {
+    net.sendT = net.conn.relay ? 1 / 20 : 1 / 30;
+    net.conn.send({ t: 'in', mx: inp.mx, mz: inp.mz, a: inp.aim.toArray(), f: inp.fire, b: net.inputN.bomb, s: net.inputN.special, d: inp.dive, j: inp.jump });
+  }
+  // 自分のキャラだけは入力ですぐ動かし、ホストの位置へゆっくり寄せる（遅延を感じにくくする）
+  if (inp && player.alive) {
+    const e = player, own = onOwnInk(e), enemyInk = onEnemyInk(e);
+    const sp = e.charge > 0 ? 2.4 : inp.dive ? (own ? 9.5 : 2.4) : enemyInk ? 3 : 5.2;
+    e.pv = e.pv || new V3();
+    const acc = Math.min(1, dt * 12);
+    e.pv.x += (inp.mx * sp - e.pv.x) * acc; e.pv.z += (inp.mz * sp - e.pv.z) * acc;
+    e.pos.x += e.pv.x * dt; e.pos.z += e.pv.z * dt;
+    const err = Math.hypot(e.netPos.x - e.pos.x, e.netPos.z - e.pos.z);
+    e.pos.lerp(e.netPos, Math.min(1, dt * (err > 2.5 ? 10 : 0.8)));
+    collideCircle(e);
+    e.y += (e.netY - e.y) * Math.min(1, dt * 14);
+    e.yaw = Math.atan2(-(inp.aim.x - e.pos.x), -(inp.aim.z - e.pos.z));
+    e.aim.copy(inp.aim);
+    e.onGround = e.y < 0.02;
+  }
+  const k = Math.min(1, dt * 14);
+  for (const e of entities) {
+    if (inp && e === player && e.alive) continue;
+    e.pos.lerp(e.netPos, k);
+    e.y += (e.netY - e.y) * k;
+    let dy = e.netYaw - e.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    e.yaw += dy * k;
+    e.onGround = e.y < 0.02;
+  }
+}
+
+let toastTimer;
+function toast(msg, ms = 1500, size = 48) {
+  const el = $('toast');
+  el.textContent = msg; el.style.fontSize = size + 'px'; el.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.opacity = 0, ms);
+}
+function updateHud() {
+  const pa = score[1] / paintable * 100, pb = score[2] / paintable * 100;
+  $('pctA').textContent = pa.toFixed(0) + '%'; $('pctB').textContent = pb.toFixed(0) + '%';
+  $('scoreA').style.width = pa + '%'; $('scoreB').style.width = pb + '%';
+  const s = Math.max(0, Math.ceil(matchLeft));
+  $('timer').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  $('timer').style.color = s <= 10 ? '#ff5252' : '#fff';
+  const inkCol = player.team === 1 ? '#ff7a00' : '#3d7bff';
+  $('hpfill').style.width = Math.max(0, player.hp) + '%'; $('hpnum').textContent = Math.max(0, Math.ceil(player.hp));
+  $('inkfill').style.width = player.ink + '%'; $('inknum').textContent = Math.floor(player.ink);
+  $('inkfill').style.background = player.ink < 20 ? '#ff4040' : inkCol;
+  $('spfill').style.width = player.special + '%'; $('spnum').textContent = Math.floor(player.special);
+  $('spfill').classList.toggle('full', player.special >= 100);
+  $('tSp').classList.toggle('ready', player.special >= 100);
+  $('inkring').setAttribute('stroke-dashoffset', 138.2 * (1 - player.ink / 100));
+  $('inkring').setAttribute('stroke', player.ink < 20 ? '#ff4040' : inkCol);
+}
+
+// ================= 入力 =================
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') { if (e.key === 'Enter' && e.target.id === 'codeIn') joinRoom(); return; }
+  keys[e.code] = true;
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'Escape' && state === 'play' && !paused && !document.pointerLockElement) { pauseGame(); return; }
+  if (state !== 'play' || paused || e.repeat) return;
+  if (e.code === 'KeyQ') bombQueued = true;
+  if (e.code === 'KeyE') specialQueued = true;
+});
+addEventListener('keyup', e => keys[e.code] = false);
+// ---- タッチ操作 ----
+const touch = { jx: 0, jy: 0, fire: false, dive: false, jumpUntil: 0, joyId: null, looks: new Map(), last: -9999 };
+const LOOK_SPEED = 0.006;
+function lookBy(dx, dy) {
+  const k = player?.charge > 0 ? LOOK_SPEED * 0.5 : LOOK_SPEED;
+  camYaw -= dx * k;
+  camPitch = clamp(camPitch + dy * k, -0.3, 1.1);
+}
+function touchStart(e) { e.preventDefault(); touch.last = performance.now(); initAudio(); }
+function capture(el, e) { try { el.setPointerCapture(e.pointerId); } catch {} }
+{
+  const joy = $('joy'), knob = $('knob');
+  const setJoy = e => {
+    const r = joy.getBoundingClientRect(), max = 46;
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const len = Math.hypot(dx, dy);
+    if (len > max) { dx *= max / len; dy *= max / len; }
+    touch.jx = dx / max; touch.jy = dy / max;
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  joy.addEventListener('pointerdown', e => { touchStart(e); touch.joyId = e.pointerId; capture(joy, e); setJoy(e); });
+  joy.addEventListener('pointermove', e => { if (e.pointerId === touch.joyId) setJoy(e); });
+  const endJoy = e => { if (e.pointerId !== touch.joyId) return; touch.joyId = null; touch.jx = touch.jy = 0; knob.style.transform = ''; };
+  joy.addEventListener('pointerup', endJoy);
+  joy.addEventListener('pointercancel', endJoy);
+
+  // ボタン：押している間だけ有効（撃つ・ダイブ）／タップで発動（ボム・ジャンプ・SP）
+  const hold = (id, key, draggable) => {
+    const el = $(id);
+    el.addEventListener('pointerdown', e => {
+      touchStart(e); capture(el, e); el.classList.add('on'); touch[key] = true;
+      if (draggable) touch.looks.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    });
+    el.addEventListener('pointermove', e => {
+      const p = touch.looks.get(e.pointerId);
+      if (!p) return;
+      lookBy(e.clientX - p.x, e.clientY - p.y);
+      p.x = e.clientX; p.y = e.clientY;
+    });
+    const up = e => { el.classList.remove('on'); touch[key] = false; touch.looks.delete(e.pointerId); };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  };
+  hold('tFire', 'fire', true);
+  hold('tDive', 'dive', false);
+  const tap = (id, fn) => {
+    const el = $(id);
+    el.addEventListener('pointerdown', e => { touchStart(e); el.classList.add('on'); if (state === 'play' && !paused) fn(); });
+    const up = () => el.classList.remove('on');
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  };
+  tap('tBomb', () => { bombQueued = true; });
+  tap('tJump', () => { touch.jumpUntil = performance.now() + 150; });
+  tap('tSp', () => { specialQueued = true; });
+  tap('tPause', () => pauseGame());
+
+  // 画面をなぞってカメラを回す（ボタン以外の場所ならどこでも）
+  const cvs = renderer.domElement;
+  cvs.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') return;
+    touchStart(e);
+    touch.looks.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  addEventListener('pointermove', e => {
+    if (e.pointerType !== 'touch' || e.target !== cvs) return;
+    const p = touch.looks.get(e.pointerId);
+    if (!p || state !== 'play' || paused) return;
+    lookBy(e.clientX - p.x, e.clientY - p.y);
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  const endLook = e => { if (e.target === cvs) touch.looks.delete(e.pointerId); };
+  addEventListener('pointerup', endLook);
+  addEventListener('pointercancel', endLook);
+}
+const fromTouch = () => performance.now() - touch.last < 1000;   // タッチ後にブラウザが出す「なりすましマウス操作」を無視する
+
+addEventListener('mousemove', e => {
+  if (state !== 'play' || paused || fromTouch()) return;
+  const k = player?.charge > 0 ? 0.0012 : 0.0022;
+  camYaw -= e.movementX * k;
+  camPitch = clamp(camPitch + e.movementY * k, -0.3, 1.1);
+});
+addEventListener('mousedown', e => {
+  if (state !== 'play' || paused || fromTouch()) return;
+  if (!testMode && !document.pointerLockElement) tryPointerLock(false);
+  if (e.button === 0) mouseDown = true;
+  if (e.button === 2) bombQueued = true;
+});
+addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; });
+addEventListener('contextmenu', e => e.preventDefault());
+
+// ================= ループ =================
+let last = performance.now(), hudT = 0;
+function simulate(dt) {
+  time += dt;
+  for (const e of entities) {
+    const inp = e.ctrl === 'bot' ? botInput(e, dt) : e.ctrl === 'local' ? playerInput() : remoteInput(e);
+    stepEntity(e, inp, dt);
+  }
+  updateProjectiles(dt);
+  rootT -= dt;
+  if (rootT <= 0) { rootT = 0.5; tickRoots(); }
+}
+function matchStep(dt) {
+  simulate(dt);
+  matchLeft -= dt;
+  if (net.mode === 'host') {
+    net.sendT -= dt;
+    if (net.sendT <= 0 || matchLeft <= 0) { net.sendT = 1 / 20; hostSend(); }
+  }
+  if (matchLeft <= 0) {
+    if (net.mode === 'host') broadcast({ t: 'end' });
+    endMatch();
+  }
+}
+// ホストのタブが裏に回ると描画ループが止まるので、Workerのタイマーで試合の計算だけ続ける
+let lastHidden = performance.now();
+try {
+  const ticker = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 33)'], { type: 'text/javascript' })));
+  ticker.onmessage = () => {
+    const t = performance.now(), dt = Math.min((t - lastHidden) / 1000, 0.1);
+    lastHidden = t;
+    if (!document.hidden) return;
+    netKeepAlive(dt);
+    for (let left = dt; left > 1e-4 && state === 'play' && net.mode === 'host'; left -= 1 / 30) matchStep(Math.min(left, 1 / 30));
+  };
+} catch {}
+function netKeepAlive(dt) {
+  net.pingT -= dt;
+  if (net.pingT > 0) return;
+  net.pingT = 3;
+  const t = performance.now();
+  if (net.mode === 'host') {
+    if (state !== 'play') broadcast({ t: 'ping' });
+    for (const [id, c] of net.conns) if (c.relay && t - (c.lastSeen || t) > 12000) hostDrop(id);
+  } else if (net.mode === 'client' && net.conn?.relay) {
+    if (state !== 'play') net.conn.send({ t: 'ping' });
+    if (t - net.hostSeen > 12000) { showTitle(); toast('ホストとの接続が切れました', 2200, 28); }
+  }
+}
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, 1 / 30);
+  last = now;
+  netKeepAlive(dt);
+  if (state === 'play') {
+    if (net.mode === 'client') { time += dt; clientTick(dt); }
+    else if (net.mode === 'host' || !paused) matchStep(dt);
+    if (player) updateCamera();
+  } else {
+    if (state === 'title' || state === 'lobby') { simulate(dt); netEvents = []; }
+    if (state === 'end' && net.mode === 'client') clientTick(dt);
+    const a = now / 14000;
+    camera.fov = 55; camera.updateProjectionMatrix();
+    camera.position.set(W / 2 + Math.sin(a) * 42, 20, D / 2 + Math.cos(a) * 34);
+    camera.lookAt(W / 2, 0, D / 2);
+  }
+  for (const e of entities) updateVisual(e, dt);
+  if (testMode && window.__camHook) window.__camHook(camera, entities);
+  clouds.rotation.y += dt * 0.004;
+  updateEffects(dt);
+  if (texDirty) updateTexture();
+  hudT -= dt;
+  if (hudT <= 0 && state === 'play' && player) { hudT = 0.1; drawMinimap(); updateHud(); }
+  composer.render();
+  requestAnimationFrame(loop);
+}
+showTitle();
+requestAnimationFrame(loop);
+if (testMode) window.__game = { get player() { return player; }, get entities() { return entities; }, score, net, get state() { return state; }, look(y, p) { camYaw = y; camPitch = p; } };
+</script>
+</body>
+</html>
