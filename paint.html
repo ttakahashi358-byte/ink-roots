@@ -60,6 +60,9 @@
   #toast { top: 24%; left: 50%; transform: translateX(-50%); font-size: 48px; font-weight: 900; opacity: 0; transition: opacity .25s; white-space: nowrap; text-shadow: 0 0 24px rgba(0,0,0,.8), 0 2px 0 #000; letter-spacing: 2px; }
   #vignette { inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(255,40,40,.5)); opacity: 0; transition: opacity .15s; }
   html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  /* ダブルタップでの拡大をさせない（スクロールやタップはそのまま使える） */
+  html, body, #overlay, #overlay * { touch-action: manipulation; }
+  #overlay { touch-action: pan-y; }
   canvas#game { touch-action: none; }
   /* ===== スマホ用タッチ操作 ===== */
   #touchui { display: none; }
@@ -2739,6 +2742,31 @@ function capture(el, e) { try { el.setPointerCapture(e.pointerId); } catch {} }
   addEventListener('pointercancel', endLook);
 }
 const fromTouch = () => performance.now() - touch.last < 1000;   // タッチ後にブラウザが出す「なりすましマウス操作」を無視する
+
+// ---- スマホの画面拡大を止める ----
+// iPhoneのSafariは「拡大しない」指定を無視するので、ダブルタップとピンチ（2本指で広げる）をプログラムでも止める
+{
+  let lastTapEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = performance.now();
+    const onControl = e.target.closest?.('input, [data-a], [data-w], [data-b], [data-bm]');   // ボタンは2回目のタップも効くようにする
+    if (now - lastTapEnd < 350 && !onControl) e.preventDefault();
+    lastTapEnd = now;
+  }, { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1 && !e.target.closest?.('#touchui, #game')) e.preventDefault(); }, { passive: false });
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, e => e.preventDefault(), { passive: false });
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+  // それでも拡大されてしまったら、元の大きさに戻す
+  const meta = document.querySelector('meta[name="viewport"]');
+  const resetZoom = () => {
+    if ((window.visualViewport?.scale || 1) <= 1.01) return;
+    const content = meta.content;
+    meta.content = content + ', minimum-scale=1';
+    setTimeout(() => { meta.content = content; }, 50);
+  };
+  window.visualViewport?.addEventListener('resize', resetZoom);
+  setInterval(resetZoom, 1000);
+}
 
 addEventListener('mousemove', e => {
   if (state !== 'play' || paused || fromTouch()) return;
