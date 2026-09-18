@@ -36,6 +36,23 @@
   #inkfill { background: linear-gradient(90deg,#ff5a00,#ffb060); box-shadow: 0 0 10px var(--orange); }
   #spfill { background: linear-gradient(90deg,#b6ff00,#00ffc8); box-shadow: 0 0 10px #7dffb0; }
   #spfill.full { animation: pulse .6s infinite alternate; }
+  #supfill { background: linear-gradient(90deg,#ffe066,#ff66c4,#66e0ff); box-shadow: 0 0 10px #ffd000; width: 0; }
+  #supfill.ready { animation: pulse .5s infinite alternate; }
+  #supnum { font-weight: 900; white-space: nowrap; }
+  @media (max-width: 1350px) { #weapon { display: none !important; } }   /* 狭い画面では建築バーと重ならないよう説明を隠す */
+  #buildbar { left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; }
+  .bslot { position: relative; width: 58px; padding: 4px 2px; border-radius: 10px; text-align: center; font-size: 10px; font-weight: 800; background: rgba(255,255,255,.06); border: 2px solid transparent; }
+  .bslot b { display: block; font-size: 22px; line-height: 1.2; }
+  .bslot i { position: absolute; left: 4px; top: 2px; font-style: normal; font-size: 10px; opacity: .6; }
+  .bslot em { display: block; font-style: normal; font-size: 9px; opacity: .85; white-space: nowrap; }
+  .bslot.sel { border-color: #b6ff00; background: rgba(182,255,0,.18); }
+  .bslot.no { opacity: .45; }
+  .bslot.mat { width: 52px; background: rgba(255,210,120,.15); }
+  body.touch #buildbar { pointer-events: auto; bottom: 6px; gap: 3px; padding: 4px; z-index: 6; }
+  body.touch .bslot { width: 42px; font-size: 8px; }
+  body.touch .bslot b { font-size: 18px; }
+  body.touch .bslot i, body.touch .bslot em { display: none; }
+  #suplbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
   @keyframes pulse { to { filter: brightness(1.8); } }
   #weapon { right: 16px; bottom: 16px; padding: 12px 16px; text-align: right; font-size: 13px; line-height: 1.8; }
   #weapon .wname { font-size: 22px; font-weight: 900; }
@@ -59,6 +76,8 @@
   #tDive { right: calc(132px + env(safe-area-inset-right)); bottom: 96px; width: 62px; height: 62px; }
   #tJump { right: calc(40px + env(safe-area-inset-right)); bottom: 142px; width: 62px; height: 62px; }
   #tSp { right: calc(112px + env(safe-area-inset-right)); bottom: 170px; width: 56px; height: 56px; }
+  #tSuper { right: calc(186px + env(safe-area-inset-right)); bottom: 150px; width: 56px; height: 56px; opacity: .55; }
+  #tSuper.ready { opacity: 1; border-color: #ffe066; box-shadow: 0 0 20px #ffc400; animation: pulse .5s infinite alternate; }
   #tSp.ready { border-color: #b6ff00; box-shadow: 0 0 18px #7dff00; animation: pulse .6s infinite alternate; }
   #tPause { left: calc(10px + env(safe-area-inset-left)); top: 10px; width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
   body.touch #weapon { display: none !important; }
@@ -133,13 +152,30 @@
     .result { font-size: 20px; gap: 20px; }
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<!-- 外部プログラムは「改ざんされていないか」をハッシュ値で確認してから使う（SRI） -->
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W" crossorigin="anonymous"></script>
 <script type="importmap">
-{ "imports": {
+{
+ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
+ },
+ "integrity": {
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js": "sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js": "sha384-S52/WAm3DaIIFna675h5dmavqea/akLlPFtPdnzgWWhnz+/nMqR6PPsSXPOd8Gpw",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js": "sha384-L+Ns9skCAqjab7aG8LH5VLknBCoENW7p37sOj39jnITwlWZFabWc29JwzgYf6ygy",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js": "sha384-LwKrkOBAkmQ2KT4cv6P6q9Rb9L01GIFU34Zp16tGWZoBnrVuujfjpYZb7OxEMb0J",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/OutputPass.js": "sha384-RJJc+pg+Ue2ZwXlf8n78cPHMiHrqfr+AxxabF5vkXMXjNPF6nSUoqb20IQXkMo6c",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js": "sha384-R734/7SvtqjjeteDKG4qcQA0adDCZ1ZcKfYUZsbVr9qqHGlgSXH9eNN4b3NIgwuc",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/shaders/CopyShader.js": "sha384-kzVlcj2amFaRNIWZ5zE0PmIN+QTNWWvrgKk31S8N/7w0nf7Qq3xqxHRLbD2UPPSl",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/ShaderPass.js": "sha384-zetU6HhR/vTtgSvnS9DE+GQPZhVT/ZOSLa/1+DSM6rkM9hvBgQWr9bCEosZt93ch",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/Pass.js": "sha384-gSqIFh8vMmp1veyOysIS3KPVUl/A5JPefYvW4b89OeYeW0bwkrjN7qcC1h0XJK/K",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/MaskPass.js": "sha384-SDM80tiGflO8UDV/QzR/mASjcc/+wF7KfRVFNHJUIPcTctwoPI8GoWVTlccZw7V4",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/shaders/OutputShader.js": "sha384-fT4woAJJtXcAxElHG1cGfIZkiSxaj7u+24LHlfNVDZZ9aSjZvr2emMGPmcD9eF0V",
+  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/shaders/LuminosityHighPassShader.js": "sha384-621kiA/kIdX8rtH6VU6+SwMVx+B8g7MQ6x0fei5dZVX3CQZSLkpOlglIk9sxE+/g"
+ }
+}
 </script>
 </head>
 <body>
@@ -163,9 +199,12 @@
 <div class="hud glass" id="status">
   <div class="lbl"><span>HP</span><span class="num" id="hpnum">100</span></div><div class="bar"><div id="hpfill"></div></div>
   <div class="lbl"><span>インク</span><span class="num" id="inknum">100</span></div><div class="bar"><div id="inkfill"></div></div>
-  <div class="lbl"><span>スペシャル [E]</span><span class="num" id="spnum">0</span></div><div class="bar" style="margin-bottom:0"><div id="spfill"></div></div>
+  <div class="lbl"><span>スペシャル [E]</span><span class="num" id="spnum">0</span></div><div class="bar"><div id="spfill"></div></div>
+  <div class="lbl" style="margin-bottom:6px"><span>🪵 木材 <b class="num" id="woodnum">30</b></span><span>🪨 石 <b class="num" id="stonenum">20</b></span></div>
+  <div class="lbl"><span id="suplbl">🎁 SP武器 [F]</span><span id="supnum">あと3キル</span></div><div class="bar" style="margin-bottom:0"><div id="supfill"></div></div>
 </div>
 <div class="hud glass" id="weapon"></div>
+<div class="hud glass" id="buildbar"></div>
 <div class="hud" id="toast"></div>
 <div id="touchui">
   <div id="joy"><div id="knob"></div></div>
@@ -174,6 +213,7 @@
   <div class="tbtn" id="tDive"><b>💧</b>ダイブ</div>
   <div class="tbtn" id="tJump"><b>⤴</b>ジャンプ</div>
   <div class="tbtn" id="tSp"><b>🌱</b>SP</div>
+  <div class="tbtn" id="tSuper"><b>🎁</b>武器</div>
   <div class="tbtn" id="tPause">⏸</div>
 </div>
 <div id="rotate">📱 横向きにすると遊びやすいよ</div>
@@ -376,6 +416,7 @@ for (const [cx, cz, w, d] of [[13, 10, 3, 6], [13, 30, 3, 6], [21, 20, 2, 8], [2
   addObstacle(cx, cz, w, d); addObstacle(W - cx, cz, w, d);
 }
 addObstacle(30, 20, 4, 4, 3.2); addObstacle(30, 10, 2, 2); addObstacle(30, 30, 2, 2);
+addObstacle(16, 20, 1.6, 1.6, 1.6); addObstacle(W - 16, 20, 1.6, 1.6, 1.6);   // 石を集めるための小さな岩
 
 const owner = new Uint8Array(GW * GH), strength = new Float32Array(GW * GH);
 const blocked = new Uint8Array(GW * GH), baseOf = new Uint8Array(GW * GH), connected = new Uint8Array(GW * GH);
@@ -541,6 +582,7 @@ function makeTree(x, y, z, scale, leafColor, fruit) {
 }
 for (const o of obstacles) {
   const w = o.x1 - o.x0, d = o.z1 - o.z0, cx = (o.x0 + o.x1) / 2, cz = (o.z0 + o.z1) / 2;
+  o.res = 'wood';   // 撃つと木材が手に入る（石だけ下で 'stone' にする）
   if (w >= 4 && d >= 4) {
     // 中央の大きな木（太い幹が当たり判定）
     const trunk = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.9, 6, 20), texMat(woodTex, 3, 1, { color: 0xb08260 })));
@@ -554,10 +596,11 @@ for (const o of obstacles) {
       scene.add(m);
     }
   } else if (w <= 2 && d <= 2) {
-    if (Math.abs(cx - W / 2) < 1) {
-      // 丸い石
+    if (Math.abs(cx - W / 2) < 1 || w < 2) {
+      // 丸い石（撃つと石が手に入る）
+      o.res = 'stone';
       const rock = shadowed(new THREE.Mesh(new THREE.DodecahedronGeometry(1.3, 2), texMat(stoneTex, 2, 2)));
-      rock.scale.set(0.8, o.h / 2.3, 0.8);
+      rock.scale.set(w / 2.6, o.h / 2.3, d / 2.6);
       rock.position.set(cx, o.h / 2 - 0.05, cz);
       rock.rotation.y = rand() * 3;
       scene.add(rock);
@@ -752,10 +795,10 @@ function segHitsBox2D(x0, z0, x1, z1, o) {
   }
   return true;
 }
-const lineOfSight = (a, b) => !obstacles.some(o => segHitsBox2D(a.x, a.z, b.x, b.z, o));
+const lineOfSight = (a, b) => !obstacles.some(o => o.solid !== false && (o.y0 || 0) < 1 && o.h > 1 && segHitsBox2D(a.x, a.z, b.x, b.z, o));
 function rayBox3D(o, d, box) {
   let t0 = 0, t1 = Infinity;
-  for (const [p, v, lo, hi] of [[o.x, d.x, box.x0, box.x1], [o.y, d.y, 0, box.h], [o.z, d.z, box.z0, box.z1]]) {
+  for (const [p, v, lo, hi] of [[o.x, d.x, box.x0, box.x1], [o.y, d.y, box.y0 || 0, box.h], [o.z, d.z, box.z0, box.z1]]) {
     if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) return null; continue; }
     let a = (lo - p) / v, b = (hi - p) / v;
     if (a > b) [a, b] = [b, a];
@@ -764,11 +807,29 @@ function rayBox3D(o, d, box) {
   }
   return t0;
 }
-function rayWorld(o, d, max) {
-  let t = max;
+function rayWorld(o, d, max) { return rayWorldHit(o, d, max).t; }
+function rayWorldHit(o, d, max) {
+  let t = max, hit = null;
   if (d.y < 0) t = Math.min(t, -o.y / d.y);
-  for (const box of obstacles) { const h = rayBox3D(o, d, box); if (h !== null && h < t) t = h; }
-  return t;
+  for (const box of obstacles) { const h = rayBox3D(o, d, box); if (h !== null && h < t) { t = h; hit = box; } }
+  return { t, hit };
+}
+// 足もとの高さ（坂・床・ジャンプ台の上に乗れる）
+function groundAt(x, z, y) {
+  let g = 0;
+  for (const o of obstacles) {
+    if (!o.dyn) continue;
+    if (o.ramp) {
+      if (x < o.x0 || x > o.x1 || z < o.z0 || z > o.z1) continue;
+      const t = o.ramp.ax === 'x' ? (x - o.x0) / (o.x1 - o.x0) : (z - o.z0) / (o.z1 - o.z0);
+      const hh = o.y0 + clamp(o.ramp.sign > 0 ? t : 1 - t, 0, 1) * (o.h - o.y0);
+      if (y >= hh - 0.8 && hh > g) g = hh;
+    } else {
+      if (x + 0.3 < o.x0 || x - 0.3 > o.x1 || z + 0.3 < o.z0 || z - 0.3 > o.z1) continue;
+      if (y >= o.h - 0.45 && o.h > g) g = o.h;
+    }
+  }
+  return g;
 }
 function collideCircle(e) {
   const r = 0.4;
@@ -776,7 +837,7 @@ function collideCircle(e) {
   e.pos.z = clamp(e.pos.z, r, D - r);
   let hit = false;
   for (const o of obstacles) {
-    if (e.y >= o.h) continue;
+    if (o.solid === false || e.y >= o.h - 0.45 || e.y + 1.4 <= (o.y0 || 0)) continue;
     const nx = clamp(e.pos.x, o.x0, o.x1), nz = clamp(e.pos.z, o.z0, o.z1);
     const dx = e.pos.x - nx, dz = e.pos.z - nz, d2 = dx * dx + dz * dz;
     if (d2 >= r * r) continue;
@@ -920,7 +981,33 @@ function makeAgent(team, weapon, speciesIndex = 0) {
   const laser = new THREE.Line(laserGeo, new THREE.LineBasicMaterial({ color: glowColor(col, 4), transparent: true }));
   laser.frustumCulled = false; laser.visible = false;
   scene.add(g, laser);
-  return { g, human, head, dive, legs, laser, liquid };
+  // スーパーインクモードのオーラ
+  const aura = new THREE.Mesh(new THREE.SphereGeometry(0.75, 24, 16), new THREE.MeshBasicMaterial({
+    color: glowColor(col, 2.2), transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending }));
+  aura.position.y = 0.7;
+  aura.visible = false;
+  g.add(aura);
+  const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffc400, emissiveIntensity: 2.5 }));
+  star.position.y = 1.55;
+  star.visible = false;
+  g.add(star);
+  // ジャンボローラー（発動中だけ表示）
+  const jumbo = new THREE.Group();
+  jumbo.position.set(0, 0, 1.2);   // 発動中は体が1.5倍なので、実際は約1.8m前・幅約5m
+  const jr = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 3.4, 28), paint);
+  jr.rotation.z = Math.PI / 2; jr.position.y = 0.42; jr.castShadow = true;
+  jumbo.add(jr);
+  for (const sx of [-1.75, 1.75]) {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.1, 28), plastic);
+    cap.rotation.z = Math.PI / 2; cap.position.set(sx, 0.42, 0);
+    jumbo.add(cap);
+  }
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.3), plastic);
+  bar.position.set(0, 0.75, -0.6); bar.rotation.x = -0.45;
+  jumbo.add(bar);
+  jumbo.visible = false;
+  g.add(jumbo);
+  return { g, human, head, dive, legs, laser, liquid, aura, star, jumbo, jroll: jr };
 }
 
 // ================= エンティティ =================
@@ -932,8 +1019,31 @@ const WEAPONS = {
 let entities = [], projectiles = [], player = null, time = 0;
 
 // ctrl: 'local'＝自分, 'remote'＝オンラインの相手, 'bot'＝AI
+// ---- スペシャル武器「スーパーインクモード」（キル数で使えるようになる切り札） ----
+const SUPER = {
+  killsPerCharge: 3,     // 何キルごとに1回もらえるか
+  damageTaken: 0.1,      // 発動中に受けるダメージの倍率（ほぼ無敵）
+  scale: 1.5,            // 発動中の体の大きさ
+};
+// スペシャル武器の種類（3キルごとにランダムで1つもらえる）
+const SPECIALS = [
+  { key: 'cannon', name: 'スーパーインクモード', emoji: '⭐', color: 0xffc400, duration: 30, speed: 7.5, replacesWeapon: true,
+    desc: '大きな弾を3発同時に撃つインクキャノン' },
+  { key: 'storm', name: 'レインボーストーム', emoji: '🌈', color: 0xff66c4, duration: 20, speed: 6, replacesWeapon: false,
+    desc: 'まわりの敵に空からインクの雨が降り注ぐ' },
+  { key: 'dash', name: 'ライトニングダッシュ', emoji: '⚡', color: 0x66e0ff, duration: 15, speed: 13, replacesWeapon: false,
+    desc: '超高速で走って太く塗り、ぶつかった敵をはね飛ばす' },
+  { key: 'jumbo', name: 'ジャンボローラー', emoji: '🌀', color: 0x9dff5c, duration: 20, speed: 6.5, replacesWeapon: true,
+    desc: '幅5mの巨大ローラーで前の敵をまとめてつぶす' },
+  { key: 'homing', name: 'ホーミングバブル', emoji: '🔮', color: 0xb58cff, duration: 20, speed: 7, replacesWeapon: true,
+    desc: '敵を自動で追いかけるシャボン玉を連射する' },
+];
+const specialOf = e => SPECIALS[Math.max(0, e.superType)] || SPECIALS[0];
+const nextSpecialOf = e => SPECIALS[Math.max(0, e.nextSuper)] || SPECIALS[0];
+const superCharges = e => Math.max(0, Math.floor(e.kills / SUPER.killsPerCharge) - e.superUsed);
+const superActive = e => e.superT > 0;
 function makeEntity(team, weapon, ctrl, name, id) {
-  return { id, team, weapon, ctrl, name, aim: new V3(), netPos: new V3(), netY: 0, netYaw: 0, remote: null, lastBombN: 0, lastSpecialN: 0, pos: new V3(), vel: new V3(), y: 0, vy: 0, onGround: true, yaw: 0, hp: 100, ink: 100, special: 0,
+  return { id, team, weapon, ctrl, name, aim: new V3(), netPos: new V3(), netY: 0, netYaw: 0, remote: null, lastBombN: 0, lastSpecialN: 0, lastSuperN: 0, lastBuildN: 0, wood: 30, stone: 20, buildCd: 0, superT: 0, superUsed: 0, superType: 0, nextSuper: -1, pos: new V3(), vel: new V3(), y: 0, vy: 0, onGround: true, yaw: 0, hp: 100, ink: 100, special: 0,
     alive: true, respawnT: 0, lastHit: -9, lastShot: -9, cd: 0, bombCd: 0, hold: 0, charge: 0, rolling: false, prevFire: false, diving: false,
     blocked: false, mesh: makeAgent(team, weapon, speciesOf(id)), walk: 0, kills: 0,
     ai: { think: 0, target: null, stuckT: 0, lastPos: new V3(), strafe: 1, wantCharge: 0.5 } };
@@ -941,7 +1051,7 @@ function makeEntity(team, weapon, ctrl, name, id) {
 function spawn(e) {
   e.pos.set(e.team === 1 ? 2.5 : W - 2.5, 0, D / 2 + (rand() - 0.5) * 3);
   e.vel.set(0, 0, 0); e.y = 0; e.vy = 0;
-  e.hp = 100; e.ink = 100; e.alive = true; e.charge = 0; e.hold = 0;
+  e.hp = 100; e.ink = 100; e.alive = true; e.charge = 0; e.hold = 0; e.superT = 0;
   e.yaw = e.team === 1 ? -Math.PI / 2 : Math.PI / 2;
   e.aim.set(W / 2, 0, e.pos.z);
   e.ai.target = null;
@@ -962,6 +1072,8 @@ function spawnBlob(e, dir, speed, dmg, paintR, spread, kind = 'blob') {
   d.x += (rand() - .5) * spread; d.y += (rand() - .5) * spread * 0.4; d.z += (rand() - .5) * spread;
   d.normalize();
   const mesh = new THREE.Mesh(blobGeo, blobMats[e.team]);
+  if (kind === 'mega') mesh.scale.setScalar(2.6);
+  if (kind === 'homing') { mesh.material = M('bubble' + e.team, () => new THREE.MeshPhysicalMaterial({ color: TEAM_HEX[e.team], emissive: TEAM_HEX[e.team], emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.75 })); mesh.scale.setScalar(1.8); }
   if (kind === 'bomb') {
     mesh.geometry = M('bombGeo', () => new THREE.IcosahedronGeometry(0.2, 1));
     mesh.material = dropMats[e.team];
@@ -1017,14 +1129,25 @@ function updateEffects(dt) {
 
 // ================= ダメージ =================
 const feed = [];
-function addFeed(html) {
-  feed.unshift(html);
+// parts = [{ text, team }] … HTMLは使わず、文字として表示する（通信で届いた文字でプログラムを動かされないように）
+function addFeed(parts) {
+  feed.unshift(parts);
   if (feed.length > 5) feed.pop();
-  $('feed').innerHTML = feed.join('<br>');
+  $('feed').replaceChildren(...feed.map(line => {
+    const div = document.createElement('div');
+    for (const p of line) {
+      const span = document.createElement('span');
+      span.textContent = p.text;
+      if (p.team) span.style.color = TEAM_CSS[p.team];
+      div.append(span);
+    }
+    return div;
+  }));
 }
 let crossTimer;
 function damage(target, amount, by) {
   if (!target.alive) return;
+  if (superActive(target)) amount *= SUPER.damageTaken;
   target.hp -= amount;
   target.lastHit = time;
   if (target !== by) emit({ t: 'hit', by: by.id });
@@ -1033,11 +1156,16 @@ function damage(target, amount, by) {
     target.alive = false;
     target.respawnT = 4;
     target.diving = false;
+    target.superT = 0;
     by.kills++;
+    if (by.kills % SUPER.killsPerCharge === 0) {
+      if (by.nextSuper < 0) by.nextSuper = Math.floor(rand() * SPECIALS.length);
+      const sp = nextSpecialOf(by);
+      emit({ t: 'toast', to: by.id, msg: `🎁 ${sp.emoji} ${sp.name} ゲット！`, ms: 1800, size: 34 });
+    }
     paintCircle(target.pos.x, target.pos.z, 1.8, by.team);
     emit({ t: 'blast', x: target.pos.x, y: 0.9, z: target.pos.z, team: by.team, r: 2.2, snd: 900 });
-    const nm = e => `<span style="color:${TEAM_CSS[e.team]}">${escapeHtml(e.name)}</span>`;
-    emit({ t: 'feed', html: `${nm(by)} <span style="opacity:.7">✦</span> ${nm(target)}` });
+    emit({ t: 'feed', parts: [{ text: by.name, team: by.team }, { text: ' ✦ ', team: 0 }, { text: target.name, team: target.team }] });
     emit({ t: 'toast', to: target.id, msg: 'やられた！ 4秒後に復活', ms: 1800, size: 34 });
     emit({ t: 'toast', to: by.id, msg: 'SPLAT!', ms: 700, size: 44 });
   }
@@ -1049,6 +1177,38 @@ let netEvents = [];
 function emit(ev) {
   if (net.mode === 'host') netEvents.push(ev);
   applyEvent(ev);
+}
+// ---- 通信で届いたデータの安全チェック（おかしな値は捨てるか、範囲内に収める） ----
+const num = (v, lo, hi, def = lo) => { v = +v; return Number.isFinite(v) ? clamp(v, lo, hi) : def; };
+const str = (v, max) => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max);
+function sanitizeStructure(s) {
+  if (!s || typeof s !== 'object' || !PIECES.some(p => p.key === s.kind)) return null;
+  const o = {
+    id: Math.floor(num(s.id, 0, 1e9)), kind: s.kind, mat: s.mat === 'stone' ? 'stone' : 'wood', team: s.team === 2 ? 2 : 1,
+    owner: str(s.owner, 64), ax: s.ax === 'z' ? 'z' : 'x', sign: s.sign < 0 ? -1 : 1, yaw: num(s.yaw, -10, 10, 0),
+    species: Math.floor(num(s.species, 0, SPECIES.length - 1)),
+    x0: num(s.x0, 0, W), x1: num(s.x1, 0, W), z0: num(s.z0, 0, D), z1: num(s.z1, 0, D), y0: num(s.y0, 0, 12), h: num(s.h, 0, 12.5),
+  };
+  const w = o.x1 - o.x0, d = o.z1 - o.z0, h = o.h - o.y0;
+  if (w < 0.1 || w > 2.2 || d < 0.1 || d > 2.2 || h <= 0 || h > 2.6) return null;
+  return o;
+}
+function sanitizeEvent(ev) {
+  if (!ev || typeof ev !== 'object') return null;
+  const x = num(ev.x, -20, W + 20, 0), z = num(ev.z, -20, D + 20, 0), team = ev.team === 2 ? 2 : 1;
+  const vec = a => Array.isArray(a) && a.length === 3 ? [num(a[0], -20, W + 20, 0), num(a[1], -5, 30, 0), num(a[2], -20, D + 20, 0)] : null;
+  switch (ev.t) {
+    case 'hit': return { t: 'hit', by: str(ev.by, 64) };
+    case 'hurt': return { t: 'hurt', who: str(ev.who, 64) };
+    case 'blast': return { t: 'blast', x, y: num(ev.y, -5, 30, 0), z, team, r: num(ev.r, 0.1, 8, 1), snd: num(ev.snd, 50, 3000, 400) };
+    case 'beam': { const a = vec(ev.a), b = vec(ev.b); return a && b ? { t: 'beam', a, b, team } : null; }
+    case 'feed': return Array.isArray(ev.parts) ? { t: 'feed', parts: ev.parts.slice(0, 6).map(p => ({ text: str(p?.text, 40), team: p?.team === 1 ? 1 : p?.team === 2 ? 2 : 0 })) } : null;
+    case 'toast': return { t: 'toast', to: str(ev.to, 64), msg: str(ev.msg, 60), ms: num(ev.ms, 200, 5000, 1200), size: num(ev.size, 12, 60, 30) };
+    case 'special': case 'super': case 'boing': return { t: ev.t, x, z };
+    case 'build': { const s = sanitizeStructure(ev.s); return s ? { t: 'build', s } : null; }
+    case 'unbuild': return { t: 'unbuild', id: Math.floor(num(ev.id, 0, 1e9)) };
+    default: return null;
+  }
 }
 function applyEvent(ev) {
   switch (ev.t) {
@@ -1078,9 +1238,22 @@ function applyEvent(ev) {
       splash(new V3(...ev.b), ev.team, 5, 4);
       tone(1800, 0.18, volAt(new V3(...ev.a), 0.15), 'sawtooth', 300);
       break;
-    case 'feed': addFeed(ev.html); break;
+    case 'feed': addFeed(ev.parts); break;
+    case 'build':
+      if (!structures.some(o => o.id === ev.s.id)) {
+        createStructure(ev.s);
+        tone(420, 0.08, volAt(new V3(ev.s.x0, 0, ev.s.z0), 0.15), 'triangle', 640);
+      }
+      break;
+    case 'unbuild': removeStructure(ev.id, true); break;
+    case 'boing': tone(300, 0.25, volAt(new V3(ev.x, 0, ev.z), 0.2), 'sine', 900); break;
     case 'toast': if (player && ev.to === player.id) toast(ev.msg, ev.ms, ev.size); break;
     case 'special': tone(250, 0.7, volAt(new V3(ev.x, 0, ev.z), 0.35), 'sawtooth', 1200); break;
+    case 'super': {
+      const v = volAt(new V3(ev.x, 0, ev.z), 0.35);
+      [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, v, 'triangle', f, i * 0.09));
+      break;
+    }
   }
 }
 
@@ -1092,10 +1265,18 @@ function stepEntity(e, inp, dt) {
     return;
   }
   const own = onOwnInk(e), enemyInk = onEnemyInk(e);
-  e.diving = inp.dive && e.onGround && e.charge === 0;
+  if (inp.super && !superActive(e) && superCharges(e) > 0) activateSuper(e);
+  const sup = superActive(e);
+  if (sup) {
+    e.superT = Math.max(0, e.superT - dt);
+    e.ink = 100;
+    if (specialOf(e).replacesWeapon) { e.charge = 0; e.hold = 0; }
+  }
+  e.diving = !sup && inp.dive && e.onGround && e.charge === 0;
   let speed = e.diving ? (own ? 9.5 : 2.4) : enemyInk ? 3 : 5.2;
   if (e.rolling) speed = enemyInk ? 2.5 : 4.4;
   if (e.charge > 0) speed = 2.4;
+  if (sup) speed = specialOf(e).speed;
   const acc = Math.min(1, dt * 12);
   e.vel.x += (inp.mx * speed - e.vel.x) * acc;
   e.vel.z += (inp.mz * speed - e.vel.z) * acc;
@@ -1104,11 +1285,21 @@ function stepEntity(e, inp, dt) {
   e.blocked = collideCircle(e);
   if (inp.jump && e.onGround) { e.vy = 7; e.onGround = false; }
   e.vy -= 22 * dt; e.y += e.vy * dt;
-  if (e.y <= 0) { e.y = 0; e.vy = 0; e.onGround = true; }
+  const gnd = groundAt(e.pos.x, e.pos.z, e.y);
+  if (e.y <= gnd) { e.y = gnd; e.vy = 0; e.onGround = true; }
+  else if (e.y > gnd + 0.08) e.onGround = false;
+  // ジャンプ台
+  if (e.onGround) for (const o of structures) {
+    if (o.kind === 'pad' && Math.abs(e.y - o.h) < 0.25 && e.pos.x > o.x0 && e.pos.x < o.x1 && e.pos.z > o.z0 && e.pos.z < o.z1) {
+      e.vy = 14; e.onGround = false;
+      emit({ t: 'boing', x: e.pos.x, z: e.pos.z });
+    }
+  }
+  if (inp.build && !e.diving) doBuild(e, inp.build.piece, inp.build.mat);
 
   if (e.diving && own) e.ink = Math.min(100, e.ink + 55 * dt);
   else if (time - e.lastShot > 0.6) e.ink = Math.min(100, e.ink + 9 * dt);
-  if (enemyInk && e.onGround && e.hp > 45) e.hp -= 12 * dt;
+  if (enemyInk && e.onGround && e.hp > 45 && !sup) e.hp -= 12 * dt;
   if (time - e.lastHit > 1.5) e.hp = Math.min(100, e.hp + 30 * dt);
 
   const target = Math.atan2(-(inp.aim.x - e.pos.x), -(inp.aim.z - e.pos.z));
@@ -1124,7 +1315,10 @@ function stepEntity(e, inp, dt) {
   e.rolling = false;
   const gain = n => { e.special = Math.min(100, e.special + n * 0.025); };
 
-  if (!e.diving) {
+  if (sup) specialTick(e, inp, dir, dt);
+  if (sup && specialOf(e).replacesWeapon) {
+    // 通常の武器はお休み（スペシャル武器が代わりに攻撃する）
+  } else if (!e.diving) {
     if (e.weapon === 'shooter') {
       if (inp.fire && e.cd <= 0 && e.ink >= 1.2) {
         spawnBlob(e, dir, 24, 24, 0.95, 0.07);
@@ -1179,7 +1373,7 @@ function stepEntity(e, inp, dt) {
       emit({ t: 'blast', x: e.pos.x, y: 0.4, z: e.pos.z, team: e.team, r: 6, snd: 300 });
       emit({ t: 'special', x: e.pos.x, z: e.pos.z });
       emit({ t: 'toast', to: e.id, msg: 'ROOT BURST!', ms: 1200, size: 48 });
-      emit({ t: 'feed', html: `<span style="color:${TEAM_CSS[e.team]}">${escapeHtml(e.name)}</span> 🌱 ルートバースト` });
+      emit({ t: 'feed', parts: [{ text: e.name, team: e.team }, { text: ' 🌱 ルートバースト', team: 0 }] });
     }
   } else { e.charge = 0; e.hold = 0; }
 }
@@ -1195,6 +1389,21 @@ function updateVisual(e, dt) {
   m.g.rotation.y = e.yaw + Math.PI;
   m.human.visible = !e.diving;
   m.dive.visible = e.diving;
+  const sup = superActive(e), targetScale = sup ? SUPER.scale : 1;
+  m.g.scale.setScalar(m.g.scale.x + (targetScale - m.g.scale.x) * Math.min(1, dt * 6));
+  m.aura.visible = m.star.visible = sup;
+  m.jumbo.visible = sup && specialOf(e).key === 'jumbo';
+  if (sup) {
+    const sp = specialOf(e);
+    m.aura.material.color.set(sp.color).multiplyScalar(2.2);
+    m.star.material.color.set(sp.color); m.star.material.emissive.set(sp.color);
+    if (m.jumbo.visible) m.jroll.rotation.x += dt * Math.hypot(e.vel.x, e.vel.z) * 2.4;
+    if (sp.key === 'dash') m.aura.scale.set(1, 1, 1.6);
+    const pulse = 1 + Math.sin(time * 10) * 0.08;
+    m.aura.scale.setScalar(pulse);
+    m.aura.material.opacity = e.superT < 5 ? 0.04 + 0.1 * Math.abs(Math.sin(time * 12)) : 0.12;   // 残り5秒で点滅
+    m.star.rotation.y += dt * 4;
+  }
   if (e.diving) { m.dive.scale.set(1, own ? 0.3 : 1, 1); m.dive.position.y = own ? -0.04 : 0; }
   const moving = Math.hypot(e.vel.x, e.vel.z) > 0.5;
   e.walk += moving ? dt * Math.hypot(e.vel.x, e.vel.z) * 2.2 : 0;
@@ -1215,10 +1424,98 @@ function updateVisual(e, dt) {
   }
 }
 
+function nearestEnemy(e, maxDist) {
+  let best = null, bd = maxDist;
+  for (const o of entities) {
+    if (o.team === e.team || !o.alive) continue;
+    const d = Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+// スペシャル武器ごとの動き（毎フレーム）
+function specialTick(e, inp, dir, dt) {
+  const sp = specialOf(e), moving = Math.hypot(e.vel.x, e.vel.z) > 1;
+  const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw);
+  switch (sp.key) {
+    case 'cannon':
+      if (inp.fire && e.cd <= 0) {
+        for (const a of [-0.09, 0, 0.09]) {
+          const d2 = new V3(dir.x * Math.cos(a) - dir.z * Math.sin(a), dir.y + 0.04, dir.x * Math.sin(a) + dir.z * Math.cos(a));
+          spawnBlob(e, d2, 26, 45, 1.6, 0.03, 'mega');
+        }
+        e.cd = 0.12; e.lastShot = time;
+        noise(0.12, 900, volAt(e.pos, 0.25));
+      }
+      for (const o of entities) if (o.team !== e.team && o.alive && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 1.3) damage(o, 300 * dt, e);
+      if (moving) paintCircle(e.pos.x, e.pos.z, 1.1, e.team);
+      break;
+    case 'storm': {
+      // 0.4秒ごとに、近くの敵（いなければ自分のまわり）へ空からインク爆弾
+      e.stormT = (e.stormT || 0) - dt;
+      if (e.stormT <= 0) {
+        e.stormT = 0.4;
+        const foe = nearestEnemy(e, 16);
+        const a = rand() * Math.PI * 2, r = foe ? rand() * 1.5 : 2 + rand() * 7;
+        const tx = clamp((foe ? foe.pos.x : e.pos.x) + Math.cos(a) * r, 1, W - 1), tz = clamp((foe ? foe.pos.z : e.pos.z) + Math.sin(a) * r, 1, D - 1);
+        const mesh = new THREE.Mesh(M('bombGeo', () => new THREE.IcosahedronGeometry(0.2, 1)), blobMats[e.team]);
+        mesh.scale.setScalar(2.2);
+        scene.add(mesh);
+        projectiles.push({ kind: 'meteor', pos: new V3(tx, 14, tz), vel: new V3(0, -20, 0), team: e.team, owner: e, dmg: 0, paintR: 2.4, life: 0, dripT: 0, fuse: -1, mesh });
+      }
+      if (moving) paintCircle(e.pos.x, e.pos.z, 0.8, e.team);
+      break;
+    }
+    case 'dash':
+      if (moving) {
+        paintCircle(e.pos.x, e.pos.z, 1.5, e.team);
+        paintCircle(e.pos.x - e.vel.x * 0.05, e.pos.z - e.vel.z * 0.05, 1.3, e.team);
+      }
+      for (const o of entities) if (o.team !== e.team && o.alive && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 1.6 && Math.abs(o.y - e.y) < 1.5) damage(o, 500 * dt, e);
+      damageStructuresNear(e.pos.x, e.pos.z, 1.8, 3000 * dt, e);
+      break;
+    case 'jumbo': {
+      // 前方に幅5mの巨大ローラー
+      const cx = e.pos.x + fx * 1.8, cz = e.pos.z + fz * 1.8;
+      if (moving || inp.fire) for (let k = -2.5; k <= 2.5; k += 0.8) paintCircle(cx + fz * k, cz - fx * k, 0.75, e.team);
+      for (const o of entities) {
+        if (o.team === e.team || !o.alive) continue;
+        const rx = o.pos.x - e.pos.x, rz = o.pos.z - e.pos.z;
+        const along = rx * fx + rz * fz, side = Math.abs(rx * fz - rz * fx);
+        if (along > 0.3 && along < 2.8 && side < 2.9 && Math.abs(o.y - e.y) < 1.5) damage(o, 900 * dt, e);
+      }
+      damageStructuresNear(cx, cz, 2.8, 3000 * dt, e);
+      if (moving && e.cd <= 0) { e.cd = 0.25; noise(0.2, 300, volAt(e.pos, 0.15)); }
+      break;
+    }
+    case 'homing':
+      if (inp.fire && e.cd <= 0) {
+        spawnBlob(e, new V3(dir.x, dir.y + 0.15, dir.z).normalize(), 13, 40, 1.3, 0.25, 'homing');
+        e.cd = 0.22; e.lastShot = time;
+        tone(900 + rand() * 300, 0.08, volAt(e.pos, 0.1), 'sine', 1600);
+      }
+      break;
+  }
+}
+function activateSuper(e) {
+  e.superUsed++;
+  e.superType = e.nextSuper < 0 ? Math.floor(rand() * SPECIALS.length) : e.nextSuper;
+  // まだ残りがあれば、次の分をもう抽選しておく
+  e.nextSuper = Math.floor(e.kills / SUPER.killsPerCharge) - e.superUsed > 0 ? Math.floor(rand() * SPECIALS.length) : -1;
+  const sp = specialOf(e);
+  e.superT = sp.duration;
+  e.hp = 100; e.diving = false; e.charge = 0;
+  paintCircle(e.pos.x, e.pos.z, 3.5, e.team);
+  emit({ t: 'blast', x: e.pos.x, y: 1, z: e.pos.z, team: e.team, r: 5, snd: 250 });
+  emit({ t: 'super', x: e.pos.x, z: e.pos.z });
+  emit({ t: 'toast', to: e.id, msg: `${sp.emoji} ${sp.name}！`, ms: 1800, size: 44 });
+  emit({ t: 'feed', parts: [{ text: e.name, team: e.team }, { text: ` ${sp.emoji} ${sp.name} 発動！`, team: 0 }] });
+}
 function fireCharger(e, muzzle, dir, gain) {
   const c = e.charge;
   e.ink -= 3 + 15 * c; e.lastShot = time;
-  let tEnd = rayWorld(muzzle, dir, 8 + 22 * c), hitE = null;
+  const wh = rayWorldHit(muzzle, dir, 8 + 22 * c);
+  let tEnd = wh.t, hitE = null;
   for (const o of entities) {
     if (o.team === e.team || !o.alive) continue;
     const w = new V3(o.pos.x, o.y + 0.65, o.pos.z).sub(muzzle);
@@ -1232,6 +1529,7 @@ function fireCharger(e, muzzle, dir, gain) {
   n += paintCircle(end.x, end.z, 1.1, e.team);
   gain(n);
   if (hitE) damage(hitE, c >= 1 ? 100 : 30 + 55 * c, e);
+  else if (wh.hit) hitObstacle(wh.hit, c >= 1 ? 100 : 30 + 55 * c, e);
   emit({ t: 'beam', a: muzzle.toArray(), b: end.toArray(), team: e.team });
 }
 
@@ -1241,7 +1539,21 @@ function updateProjectiles(dt) {
     p.life += dt;
     let remove = false;
     const gain = n => { p.owner.special = Math.min(100, p.owner.special + n * 0.025); };
-    if (p.kind === 'bomb') {
+    if (p.kind === 'meteor') {
+      p.pos.addScaledVector(p.vel, dt);
+      p.mesh.rotation.x += dt * 8;
+      if (p.pos.y <= 0.2) {
+        gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team));
+        emit({ t: 'blast', x: p.pos.x, y: 0.3, z: p.pos.z, team: p.team, r: 2.6, snd: 500 });
+        damageStructuresNear(p.pos.x, p.pos.z, 2.8, 120, p.owner);
+        for (const o of entities) {
+          if (o.team === p.team || !o.alive) continue;
+          const d = Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z);
+          if (d < 2.6) damage(o, d < 1.2 ? 100 : 75 * (1 - d / 2.6) + 20, p.owner);
+        }
+        remove = true;
+      }
+    } else if (p.kind === 'bomb') {
       p.mesh.rotation.x += dt * 6; p.mesh.rotation.y += dt * 4;
       if (p.fuse >= 0) {
         p.fuse -= dt;
@@ -1249,6 +1561,7 @@ function updateProjectiles(dt) {
         if (p.fuse <= 0) {
           gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team));
           emit({ t: 'blast', x: p.pos.x, y: p.pos.y, z: p.pos.z, team: p.team, r: 3.2, snd: 350 });
+          damageStructuresNear(p.pos.x, p.pos.z, 3.4, 110, p.owner);
           for (const o of entities) {
             if (o.team === p.team || !o.alive) continue;
             const d = Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z);
@@ -1267,19 +1580,41 @@ function updateProjectiles(dt) {
         if (p.pos.y <= 0.2) { p.pos.y = 0.2; p.vel.set(0, 0, 0); p.fuse = 0.7; }
       }
     } else {
-      if (p.life > 0.16) p.vel.y -= 32 * dt;
+      if (p.kind === 'homing') {
+        // 一番近い敵へ向きを変える
+        let best = null, bd = 22;
+        for (const o of entities) {
+          if (o.team === p.team || !o.alive) continue;
+          const d = p.pos.distanceTo(new V3(o.pos.x, o.y + 0.7, o.pos.z));
+          if (d < bd) { bd = d; best = o; }
+        }
+        if (best && p.life > 0.15) {
+          const want = new V3(best.pos.x, best.y + 0.7, best.pos.z).sub(p.pos).normalize().multiplyScalar(14);
+          if (obstacles.some(o => p.pos.x > o.x0 - 1 && p.pos.x < o.x1 + 1 && p.pos.z > o.z0 - 1 && p.pos.z < o.z1 + 1 && p.pos.y < o.h + 0.6)) want.y = 8;   // 障害物はふわっと越える
+          p.vel.lerp(want, Math.min(1, dt * 4));
+        } else p.vel.y -= 4 * dt;
+        p.mesh.scale.setScalar(1.8 + Math.sin(p.life * 20) * 0.2);
+        if (p.life > 3.5) { gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team)); remove = true; }
+      } else if (p.life > 0.16) p.vel.y -= 32 * dt;
       p.pos.addScaledVector(p.vel, dt);
       p.dripT -= dt;
       if (p.dripT <= 0 && p.pos.y < 3) { p.dripT = 0.08; gain(paintCircle(p.pos.x, p.pos.z, 0.3, p.team)); }
       for (const o of entities) {
         if (o.team === p.team || !o.alive) continue;
-        if (Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z) < 0.5 && p.pos.y > o.y - 0.1 && p.pos.y < o.y + (o.diving ? 0.6 : 1.45)) {
+        const big = superActive(o) ? SUPER.scale : 1, hitR = (p.kind === 'mega' ? 0.8 : p.kind === 'homing' ? 0.7 : 0.5) * big;
+        if (Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z) < hitR && p.pos.y > o.y - 0.1 && p.pos.y < o.y + (o.diving ? 0.6 : 1.45 * big)) {
           damage(o, p.dmg, p.owner);
           splash(p.pos, p.team, 4);
           remove = true; break;
         }
       }
-      if (!remove && (p.pos.y <= 0 || obstacles.some(o => p.pos.x > o.x0 && p.pos.x < o.x1 && p.pos.z > o.z0 && p.pos.z < o.z1 && p.pos.y < o.h))) {
+      const hitObs = !remove && p.kind !== 'homing' && obstacles.find(o => p.pos.x > o.x0 && p.pos.x < o.x1 && p.pos.z > o.z0 && p.pos.z < o.z1 && p.pos.y < o.h && p.pos.y > (o.y0 || 0) - 0.05);
+      if (hitObs) hitObstacle(hitObs, p.dmg, p.owner);
+      if (!remove && p.kind === 'homing') {
+        const h = structures.find(o => o.team !== p.team && p.pos.x > o.x0 && p.pos.x < o.x1 && p.pos.z > o.z0 && p.pos.z < o.z1 && p.pos.y < o.h && p.pos.y > o.y0);
+        if (h && h.kind === 'decoy') { damageStructure(h, p.dmg, p.owner); remove = true; }
+      }
+      if (!remove && (p.pos.y <= 0 || hitObs)) {
         gain(paintCircle(p.pos.x, p.pos.z, p.paintR, p.team));
         if (rand() < 0.3) splash(new V3(p.pos.x, 0.05, p.pos.z), p.team, 2, 2.5);
         remove = true;
@@ -1288,6 +1623,165 @@ function updateProjectiles(dt) {
     if (p.pos.x < -5 || p.pos.x > W + 5 || p.pos.z < -5 || p.pos.z > D + 5 || p.pos.y < -3) remove = true;
     if (remove) { scene.remove(p.mesh); projectiles.splice(i, 1); }
     else p.mesh.position.copy(p.pos);
+  }
+}
+
+// ================= 建築 =================
+const MAX_MAT = 99;
+const PIECES = [
+  { key: 'wall', name: '壁', emoji: '🧱', cost: m => ({ [m]: 10 }), usesMat: true },
+  { key: 'ramp', name: '坂', emoji: '📐', cost: m => ({ [m]: 10 }), usesMat: true },
+  { key: 'floor', name: '床', emoji: '⬜', cost: m => ({ [m]: 10 }), usesMat: true },
+  { key: 'tower', name: 'タワー', emoji: '🗼', cost: () => ({ wood: 10, stone: 10 }) },
+  { key: 'pad', name: 'ジャンプ台', emoji: '🔼', cost: () => ({ stone: 10 }) },
+  { key: 'decoy', name: 'おとり', emoji: '🎎', cost: () => ({ wood: 15 }) },
+];
+const structures = [];
+let structSeq = 0;
+const boxesOverlap = (a, b) => a.x0 < b.x1 - 0.02 && a.x1 > b.x0 + 0.02 && a.z0 < b.z1 - 0.02 && a.z1 > b.z0 + 0.02 && a.y0 < b.h - 0.02 && a.h > (b.y0 || 0) + 0.02;
+// 目の前のどこに建つかを計算（ホストの建築と、プレイヤーの予告表示で共通）
+function planBuild(e, pieceIndex, mat) {
+  const P = PIECES[pieceIndex];
+  if (!P) return null;
+  const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw);
+  const ax = Math.abs(fx) > Math.abs(fz) ? 'x' : 'z', sign = (ax === 'x' ? fx : fz) > 0 ? 1 : -1;
+  const base = Math.max(0, Math.floor((e.y + 0.3) / 2.4) * 2.4);
+  const cell = v => Math.floor(v / 2) * 2 + 1;
+  const s = { kind: P.key, mat: P.usesMat ? mat : P.key === 'pad' ? 'stone' : 'wood', team: e.team, owner: e.id, ax, sign, yaw: e.yaw, species: speciesOf(e.id) };
+  if (P.key === 'wall') {
+    if (ax === 'x') { const x = Math.round((e.pos.x + sign * 1.6) / 2) * 2, z = cell(e.pos.z); Object.assign(s, { x0: x - 0.15, x1: x + 0.15, z0: z - 1, z1: z + 1 }); }
+    else { const z = Math.round((e.pos.z + sign * 1.6) / 2) * 2, x = cell(e.pos.x); Object.assign(s, { x0: x - 1, x1: x + 1, z0: z - 0.15, z1: z + 0.15 }); }
+    s.y0 = base; s.h = base + 2.4;
+  } else {
+    const cx = cell(e.pos.x + (ax === 'x' ? sign * 2 : 0)), cz = cell(e.pos.z + (ax === 'z' ? sign * 2 : 0));
+    const half = { ramp: 1, floor: 1, tower: 0.45, pad: 0.8, decoy: 0.4 }[P.key];
+    Object.assign(s, { x0: cx - half, x1: cx + half, z0: cz - half, z1: cz + half });
+    if (P.key === 'ramp') { s.y0 = base; s.h = base + 2.4; }
+    else if (P.key === 'floor') { const top = base > 0.1 ? base : 2.4; s.y0 = top - 0.2; s.h = top; }
+    else if (P.key === 'tower') { s.y0 = base; s.h = base + 2.2; }
+    else if (P.key === 'pad') { s.y0 = base; s.h = base + 0.15; }
+    else { s.y0 = base; s.h = base + 1.4; }
+  }
+  const cost = P.cost(s.mat);
+  let ok = true, reason = '';
+  if (s.x0 < 0 || s.x1 > W || s.z0 < 0 || s.z1 > D || s.h > 12) { ok = false; reason = 'ここには建てられない'; }
+  else if (obstacles.some(o => boxesOverlap(s, o))) { ok = false; reason = 'ほかの物とぶつかる'; }
+  else if (P.key !== 'pad' && P.key !== 'ramp' && entities.some(o => o.alive && o.pos.x + 0.4 > s.x0 && o.pos.x - 0.4 < s.x1 && o.pos.z + 0.4 > s.z0 && o.pos.z - 0.4 < s.z1 && o.y + 1.4 > s.y0 && o.y < s.h)) { ok = false; reason = 'キャラクターがいる'; }
+  else if ((cost.wood || 0) > e.wood || (cost.stone || 0) > e.stone) { ok = false; reason = '素材が足りない'; }
+  return { s, ok, reason, cost };
+}
+function doBuild(e, pieceIndex, mat) {
+  if (time < e.buildCd) return;
+  const plan = planBuild(e, pieceIndex, mat === 'stone' ? 'stone' : 'wood');
+  if (!plan) return;
+  if (!plan.ok) { emit({ t: 'toast', to: e.id, msg: plan.reason, ms: 700, size: 24 }); return; }
+  e.buildCd = time + 0.25;
+  e.wood -= plan.cost.wood || 0; e.stone -= plan.cost.stone || 0;
+  const s = plan.s;
+  s.id = ++structSeq;
+  const maxHp = { wall: 1, ramp: 1, floor: 1 }[s.kind] ? (s.mat === 'stone' ? 300 : 150) : { tower: 200, pad: 150, decoy: 100 }[s.kind];
+  // 同じ人のタワーは2本、おとり人形は1体まで。全体の数にも上限
+  const limit = { tower: 2, decoy: 1 }[s.kind];
+  const mine = structures.filter(o => o.owner === e.id && o.kind === s.kind && !o.dead);
+  if (limit && mine.length >= limit) destroyStructure(mine[0]);
+  if (structures.length >= 120) destroyStructure(structures[0]);
+  emit({ t: 'build', s });
+  const created = structures.find(o => o.id === s.id);
+  if (created) { created.hp = maxHp; if (s.kind === 'decoy') created.expires = time + 25; }
+}
+function hitObstacle(o, dmg, by) {
+  if (!by) return;
+  if (o.dyn) { if (o.team !== by.team) damageStructure(o, dmg, by); return; }
+  if (o.res) by[o.res] = Math.min(MAX_MAT, by[o.res] + Math.max(0.3, dmg * 0.02));   // 撃った分だけ素材が集まる
+}
+function damageStructure(o, dmg, by) {
+  if (!o.dyn || o.dead || (by && o.team === by.team)) return;
+  o.hp -= dmg;
+  if (o.hp <= 0) destroyStructure(o);
+}
+function damageStructuresNear(x, z, r, dmg, by) {
+  for (const o of [...structures]) {
+    const cx = (o.x0 + o.x1) / 2, cz = (o.z0 + o.z1) / 2;
+    if (Math.hypot(cx - x, cz - z) < r + 0.8) damageStructure(o, dmg, by);
+  }
+}
+function destroyStructure(o) {
+  if (o.dead) return;
+  o.dead = true;
+  emit({ t: 'unbuild', id: o.id });
+}
+const buildMats = {};
+const buildMat = mat => buildMats[mat] || (buildMats[mat] = mat === 'stone' ? texMat(stoneTex, 1, 1, { color: 0xd8d2c6 }) : texMat(woodTex, 1, 1));
+function createStructure(s) {
+  const o = { ...s, dyn: true, solid: s.kind !== 'ramp' && s.kind !== 'pad', ramp: s.kind === 'ramp' ? { ax: s.ax, sign: s.sign } : null, hp: 999, tick: 0, dead: false };
+  const w = o.x1 - o.x0, d = o.z1 - o.z0, h = o.h - o.y0, col = TEAM_HEX[o.team];
+  const g = new THREE.Group();
+  g.position.set((o.x0 + o.x1) / 2, o.y0, (o.z0 + o.z1) / 2);
+  const add = (geo, mat, y) => { const m = shadowed(new THREE.Mesh(geo, mat)); m.position.y = y; g.add(m); return m; };
+  const teamMat = M('bteam' + o.team, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.5, roughness: 0.5 }));
+  if (o.kind === 'wall') {
+    add(new RoundedBoxGeometry(w, h, d, 2, 0.06), buildMat(o.mat), h / 2);
+    add(new THREE.BoxGeometry(w + 0.02, 0.12, d + 0.02), teamMat, h - 0.25);
+  } else if (o.kind === 'floor') {
+    add(new RoundedBoxGeometry(w, 0.2, d, 2, 0.05), buildMat(o.mat), 0.1);
+  } else if (o.kind === 'ramp') {
+    const tilt = new THREE.Group();
+    tilt.rotation.y = o.ax === 'x' ? (o.sign > 0 ? Math.PI / 2 : -Math.PI / 2) : (o.sign > 0 ? 0 : Math.PI);
+    g.add(tilt);
+    const plank = shadowed(new THREE.Mesh(new RoundedBoxGeometry(1.95, 0.18, 3.12, 2, 0.05), buildMat(o.mat)));
+    plank.position.y = 1.2; plank.rotation.x = -Math.atan2(2.4, 2);
+    tilt.add(plank);
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(2, 0.06, 0.12), teamMat);
+    edge.position.set(0, 2.36, 1);
+    tilt.add(edge);
+  } else if (o.kind === 'tower') {
+    add(new THREE.CylinderGeometry(0.35, 0.45, 1.6, 12), buildMat('wood'), 0.8);
+    add(new THREE.CylinderGeometry(0.5, 0.5, 0.15, 16), buildMat('stone'), 1.65);
+    o.orb = add(new THREE.SphereGeometry(0.33, 20, 14), M('borb' + o.team, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.6, roughness: 0.2 })), 2.0);
+  } else if (o.kind === 'pad') {
+    add(new THREE.CylinderGeometry(0.8, 0.85, 0.15, 24), M('padbase', () => new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.4 })), 0.075);
+    add(new THREE.CylinderGeometry(0.5, 0.5, 0.03, 24), teamMat, 0.16);
+  } else if (o.kind === 'decoy') {
+    const doll = makeAgent(o.team, 'shooter', o.species);
+    scene.remove(doll.g, doll.laser);
+    doll.g.rotation.y = o.yaw + Math.PI;
+    g.add(doll.g);
+  }
+  scene.add(g);
+  o.mesh = g;
+  if (o.kind === 'decoy') o.target = { pos: new V3((o.x0 + o.x1) / 2, 0, (o.z0 + o.z1) / 2), vel: new V3(), y: o.y0, alive: true, diving: false, decoy: o };
+  structures.push(o);
+  obstacles.push(o);
+  return o;
+}
+function removeStructure(id, withEffect) {
+  const i = structures.findIndex(o => o.id === id);
+  if (i < 0) return;
+  const o = structures[i];
+  o.dead = true;
+  structures.splice(i, 1);
+  const j = obstacles.indexOf(o);
+  if (j >= 0) obstacles.splice(j, 1);
+  scene.remove(o.mesh);
+  o.mesh.traverse(m => m.geometry?.dispose());
+  if (withEffect) {
+    const p = new V3((o.x0 + o.x1) / 2, (o.y0 + o.h) / 2, (o.z0 + o.z1) / 2);
+    splash(p, o.team, 10, 5);
+    noise(0.25, 700, volAt(p, 0.35));
+  }
+}
+function updateStructures(dt) {   // ホストだけ：インクタワーが塗る、おとり人形が消える
+  for (const o of [...structures]) {
+    if (o.kind === 'tower') {
+      o.tick -= dt;
+      if (o.tick <= 0) { o.tick = 1.2; paintCircle((o.x0 + o.x1) / 2, (o.z0 + o.z1) / 2, 3.2, o.team); }
+    }
+    if (o.expires && time > o.expires) destroyStructure(o);
+  }
+}
+function animateStructures(dt) {
+  for (const o of structures) {
+    if (o.orb) { o.orb.position.y = 2.0 + Math.sin(time * 3 + o.id) * 0.12; o.orb.rotation.y += dt * 2; }
   }
 }
 
@@ -1319,6 +1813,11 @@ function botInput(b, dt) {
     const d = Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z);
     if (d < fd && lineOfSight(b.pos, o.pos)) { fd = d; foe = o; }
   }
+  for (const o of structures) {   // 敵のおとり人形にもだまされる
+    if (o.kind !== 'decoy' || o.team === b.team) continue;
+    const d = Math.hypot(o.target.pos.x - b.pos.x, o.target.pos.z - b.pos.z);
+    if (d < fd + 3 && lineOfSight(b.pos, o.target.pos)) { fd = d; foe = o.target; }
+  }
   ai.think -= dt;
   ai.stuckT += dt;
   if (ai.stuckT > 1) {
@@ -1339,11 +1838,15 @@ function botInput(b, dt) {
     const want = b.weapon === 'charger' ? 14 : b.weapon === 'roller' ? 0 : 6;
     if (fd > want + 2) move(dx, dz); else if (fd < want - 2) move(-dx, -dz);
     move(-dz * ai.strafe, dx * ai.strafe, b.weapon === 'roller' ? 0.2 : 0.8);
-    if (b.weapon === 'shooter') inp.fire = fd < 11 && b.ink > 2;
+    if (superActive(b)) { inp.fire = fd < 16; move(dx, dz); if (specialOf(b).key === 'dash' || specialOf(b).key === 'jumbo') move(dx, dz, 1.5); }
+    else if (b.weapon === 'shooter') inp.fire = fd < 11 && b.ink > 2;
     else if (b.weapon === 'roller') inp.fire = fd < 7 || b.hold > 0;
     else inp.fire = b.charge < (fd < 8 ? 0.5 : 1) && b.ink > 5;
     if (b.ink > 70 && fd > 4 && fd < 11 && rand() < dt * 0.4) inp.bomb = true;
+    if (time - b.lastHit < 0.3 && b.hp < 70 && fd > 3 && rand() < 0.08) inp.build = { piece: 0, mat: b.stone >= 10 && rand() < 0.4 ? 'stone' : 'wood' };   // 撃たれたら壁で守る
+    else if (b.wood >= 25 && fd > 6 && rand() < dt * 0.05) inp.build = { piece: 5, mat: 'wood' };
     if (b.special >= 100 && rand() < dt) inp.special = true;
+    if (superCharges(b) > 0 && fd < 12 && rand() < dt * 0.8) inp.super = true;
   } else {
     if (!ai.target) chooseTarget(b);
     const t = ai.target;
@@ -1362,6 +1865,7 @@ function botInput(b, dt) {
       else if (b.weapon === 'charger') inp.fire = b.charge < ai.wantCharge;
       else inp.fire = true;
       if (b.ink > 85 && rand() < dt * 0.15) inp.bomb = true;
+      if (b.wood >= 20 && b.stone >= 10 && rand() < dt * 0.04) inp.build = { piece: 3, mat: 'wood' };
       if (b.special >= 100 && rand() < dt * 0.5) inp.special = true;
     }
   }
@@ -1372,14 +1876,17 @@ function botInput(b, dt) {
 
 // ================= プレイヤー操作 =================
 const keys = {};
-let mouseDown = false, bombQueued = false, specialQueued = false;
+let mouseDown = false, bombQueued = false, specialQueued = false, superQueued = false, buildQueued = false;
+let buildPiece = -1, buildMatSel = 'wood';
 let camYaw = -Math.PI / 2, camPitch = 0.3;
 function playerInput() {
-  const inp = { mx: 0, mz: 0, aim: new V3(), fire: mouseDown || touch.fire, bomb: bombQueued, special: specialQueued,
+  const inp = { mx: 0, mz: 0, aim: new V3(), fire: mouseDown || touch.fire, bomb: bombQueued, special: specialQueued, super: superQueued, build: buildQueued && buildPiece >= 0 ? { piece: buildPiece, mat: buildMatSel } : null,
     dive: !!(keys.ShiftLeft || keys.ShiftRight) || touch.dive, jump: !!keys.Space || performance.now() < touch.jumpUntil };
   if (bombQueued) net.inputN.bomb++;
   if (specialQueued) net.inputN.special++;
-  bombQueued = specialQueued = false;
+  if (superQueued) net.inputN.super++;
+  if (inp.build) { net.inputN.build++; net.buildReq = inp.build; }
+  bombQueued = specialQueued = superQueued = buildQueued = false;
   let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.jx, iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.jy;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
@@ -1396,9 +1903,10 @@ let shake = 0;
 function updateCamera() {
   const p = player;
   const rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
-  const tgt = new V3(p.pos.x + rx * 0.55, p.y + 1.25, p.pos.z + rz * 0.55);
+  const big = p.mesh.g.scale.x;   // スーパーインクモード中は体が大きいのでカメラを引く
+  const tgt = new V3(p.pos.x + rx * 0.55 * big, p.y + 1.25 * big, p.pos.z + rz * 0.55 * big);
   const back = new V3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch));
-  let dist = 3.6;
+  let dist = 3.6 * big;
   for (const o of obstacles) { const h = rayBox3D(tgt, back, o); if (h !== null && h < dist) dist = Math.max(0.7, h - 0.2); }
   camera.position.copy(tgt).addScaledVector(back, dist);
   camera.position.y = Math.max(0.25, camera.position.y);
@@ -1410,7 +1918,7 @@ function updateCamera() {
 // ================= 試合の流れ =================
 const MATCH = 150;
 let state = 'title', paused = false, matchLeft = MATCH, rootT = 0, chosenWeapon = 'shooter';
-const testMode = location.hash === '#test';
+const testMode = location.hash === '#test' && ['localhost', '127.0.0.1'].includes(location.hostname);   // 公開ページでは使えない
 const BOT_NAMES = [null, ['ミカン', 'ポンカン', 'ユズ', 'ダイダイ'], ['ソーダ', 'ラムネ', 'アオイ', 'サファイア']];
 const WEAPON_KEYS = ['shooter', 'roller', 'charger'];
 let myName = (() => { try { return localStorage.getItem('inkroots-name') || ''; } catch { return ''; } })();
@@ -1418,6 +1926,8 @@ let myName = (() => { try { return localStorage.getItem('inkroots-name') || ''; 
 function clearAll() {
   for (const e of entities) scene.remove(e.mesh.g, e.mesh.laser);
   for (const p of projectiles) scene.remove(p.mesh);
+  for (const o of [...structures]) removeStructure(o.id, false);
+  structSeq = 0;
   entities = []; projectiles = []; feed.length = 0; $('feed').innerHTML = '';
 }
 // 人間の参加者リストから、チーム分けとAIの補充をした名簿を作る
@@ -1450,11 +1960,12 @@ function setupFromRoster(roster, myId) {
   camYaw = player?.team === 2 ? Math.PI / 2 : -Math.PI / 2; camPitch = 0.3;
   matchLeft = MATCH; rootT = 0; time = 0;
   netEvents = [];
-  net.inputN = { bomb: 0, special: 0 };
+  net.inputN = { bomb: 0, special: 0, super: 0, build: 0 };
 }
 function overlay(html) { $('overlay').innerHTML = html; $('overlay').style.display = html ? 'flex' : 'none'; }
 function setHud(show) {
-  for (const id of ['cross', 'top', 'mapbox', 'feed', 'status', 'weapon']) $(id).style.display = show ? '' : 'none';
+  for (const id of ['cross', 'top', 'mapbox', 'feed', 'status', 'weapon', 'buildbar']) $(id).style.display = show ? '' : 'none';
+  buildPiece = -1; lastBarKey = '';
   document.body.classList.toggle('playing', show);
 }
 function weaponCards(selected) {
@@ -1474,18 +1985,21 @@ function showTitle() {
     <div class="rule glass">🎨 自分のインクで地面を塗り合う <b>4 vs 4</b> バトル。<br>
     🌱 塗った色は<b>「根」</b>。スタート地点と<b>つながっている間、じわじわ勝手に広がる</b>。<br>
     ✂️ 敵に途中を塗られて<b>つながりが切れると、その先の色はくすんで枯れていく</b>。<br>
-    👉 ただ広く塗るより「根元を切る」「自分の道を守る」が勝負のカギ。</div>
+    👉 ただ広く塗るより「根元を切る」「自分の道を守る」が勝負のカギ。<br>
+    🧱 <b>建築</b>：木箱・生け垣・木を撃つと🪵木材、石を撃つと🪨石。壁・坂・床・インクタワー・ジャンプ台・おとり人形を建てられる。<br>
+    🎁 <b>3キルごとにスペシャル武器</b>がランダムでもらえる（発動中はほぼ無敵）：${SPECIALS.map(sp => `${sp.emoji}${sp.name}`).join('・')}</div>
     <div class="cards">${weaponCards()}</div>
     <div class="online glass">
       <div class="en">ONLINE BATTLE</div>
       <div class="row"><label>なまえ</label><input id="nameIn" maxlength="10" value="${escapeHtml(myName)}" placeholder="プレイヤー名"></div>
       <div class="row"><span class="btn" data-a="host">ルームを作る</span><span class="or">または</span>
-        <input id="codeIn" maxlength="4" placeholder="コード4文字" style="width:120px;text-transform:uppercase"><span class="btn sub" data-a="join">参加する</span></div>
+        <input id="codeIn" maxlength="9" placeholder="コード8文字" autocomplete="off" style="width:150px;text-transform:uppercase"><span class="btn sub" data-a="join">参加する</span></div>
       <div class="hint">武器カードを押すと、ひとりでAIと対戦。友達と遊ぶときは「ルームを作る」でコードを伝えよう。</div>
+      <div class="hint" style="color:#ffd27a">⚠️ オンライン対戦では、つながった相手にIPアドレス（ネット上の住所のような番号）が伝わります。知らない人とは遊ばないでね。名前に本名を入れないでね。</div>
     </div>
     <div class="keys">${isTouch
-      ? '左のスティック：移動　画面の右側をなぞる：ねらう　🎯：撃つ（押したままなぞってもねらえる）<br>💧ダイブ：自分の色の上で高速移動・インク回復　💣ボム　🌱スペシャル　📱横向きがおすすめ'
-      : 'WASD：移動　マウス：ねらう　左クリック：撃つ　右クリック・Q：ボム　E：スペシャル<br>Shift：ダイブ（自分の色の上で高速移動・インク回復・敵から見えにくい）　スペース：ジャンプ'}</div>`);
+      ? '左のスティック：移動　画面の右側をなぞる：ねらう　🎯：撃つ（押したままなぞってもねらえる）<br>💧ダイブ：自分の色の上で高速移動・インク回復　💣ボム　🌱スペシャル　🎁スペシャル武器（3キルごとにランダム）<br>下の建築バーをタップ：その場で建てる　📱横向きがおすすめ'
+      : 'WASD：移動　マウス：ねらう　左クリック：撃つ　Q：ボム　E：スペシャル　F：🎁スペシャル武器（3キルごとにランダム）<br>1〜6：建築を選ぶ → 右クリック/G：建てる　C：木/石　X：やめる　Shift：ダイブ（自分の色の上で高速移動・インク回復・敵から見えにくい）　スペース：ジャンプ'}</div>`);
 }
 function startSolo(weapon) {
   chosenWeapon = weapon;
@@ -1497,7 +2011,7 @@ function beginPlay(needClick) {
   state = 'play'; paused = true;
   setHud(true);
   const w = WEAPONS[player.weapon];
-  $('weapon').innerHTML = `<div class="num" style="font-size:11px;letter-spacing:3px;color:${TEAM_CSS[player.team]}">${w.en}</div><div class="wname">${w.name}</div>右クリック / Q：ボム（インク50）<br>Shift：ダイブ　E：ルートバースト`;
+  $('weapon').innerHTML = `<div class="num" style="font-size:11px;letter-spacing:3px;color:${TEAM_CSS[player.team]}">${w.en}</div><div class="wname">${w.name}</div>Q：ボム（インク50）　Shift：ダイブ<br>E：ルートバースト　F：🎁スペシャル武器<br>1〜6：建築を選ぶ　右クリック/G：建てる<br>C：木/石を切替　X：建築をやめる`;
   if (needClick && !testMode) {
     overlay(`<div class="logo-en">MATCH START</div><h1>試合開始！</h1>
       <div class="tag">あなたは <b style="color:${TEAM_CSS[player.team]}">${player.team === 1 ? 'オレンジ' : 'ブルー'}</b> チーム</div>
@@ -1594,7 +2108,38 @@ const PEER_PREFIX = 'inkroots-v1-';
 const PEER_OPTS = { config: { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478'] }] } };
 // P2Pでつながらないときの予備：公開MQTTブローカーを中継に使う
 const MQTT_URLS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
-const topicOf = (code, dir) => `inkroots/v1/${code}/${dir}`;
+// 中継サーバーは誰でも見られるので、通信はルームコードから作った鍵で暗号化する（AES-GCM）。
+// 宛先名（トピック）もコードから計算した見えない名前にして、コードそのものは流さない。
+const textEnc = new TextEncoder(), textDec = new TextDecoder();
+const cryptoOk = () => !!(globalThis.crypto && crypto.subtle);
+async function roomCrypto(code) {
+  const base = await crypto.subtle.importKey('raw', textEnc.encode(code), 'PBKDF2', false, ['deriveKey', 'deriveBits']);
+  const pb = salt => ({ name: 'PBKDF2', salt: textEnc.encode(salt), iterations: 150000, hash: 'SHA-256' });
+  const key = await crypto.subtle.deriveKey(pb('inkroots-relay-key-v2'), base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(pb('inkroots-relay-topic-v2'), base, 128));
+  return { key, topic: [...bits].map(x => x.toString(16).padStart(2, '0')).join('') };
+}
+const relayTopic = (rc, dir) => `inkroots/v2/${rc.topic}/${dir}`;
+async function sealMsg(rc, msg) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, rc.key, textEnc.encode(encodeMsg({ ...msg, ts: Date.now() }))));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv); out.set(ct, 12);
+  return out;
+}
+async function openMsg(rc, payload) {
+  const b = new Uint8Array(payload);
+  if (b.length < 29 || b.length > 4e6) throw new Error('bad size');
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, rc.key, b.slice(12));   // 鍵が違う・改ざんされていると失敗する
+  const d = decodeMsg(textDec.decode(pt));
+  if (!d || typeof d !== 'object' || Math.abs(Date.now() - (+d.ts || 0)) > 5 * 60 * 1000) throw new Error('stale');   // 古い通信の送り直しを防ぐ
+  return d;
+}
+// 受け取り・送信を順番どおりに処理する（暗号化は非同期なので、並びが入れ替わらないように）
+function serialQueue() {
+  let q = Promise.resolve();
+  return fn => { q = q.then(fn).catch(() => {}); };
+}
 function relayConnect(onReady, onFail, urlIndex = 0) {
   if (typeof mqtt === 'undefined') { onFail(); return; }
   const c = mqtt.connect(MQTT_URLS[urlIndex], { connectTimeout: 6000, reconnectPeriod: 2000 });
@@ -1624,7 +2169,7 @@ const encodeMsg = msg => JSON.stringify(msg, (k, v) => ArrayBuffer.isView(v)
   ? { __b: v instanceof Float32Array ? 'F32' : v instanceof Uint32Array ? 'U32' : 'U8', d: b64(new Uint8Array(v.buffer, v.byteOffset, v.byteLength)) } : v);
 const decodeMsg = str => JSON.parse(str, (k, v) => v && v.__b && TYPED[v.__b] ? new TYPED[v.__b](unb64(v.d).buffer) : v);
 const net = { mode: 'offline', peer: null, relay: null, relays: [], token: null, conns: new Map(), conn: null, myId: null, code: '', lobby: [], sendT: 0, pingT: 0, hostSeen: 0,
-  inputN: { bomb: 0, special: 0 }, lastPacked: null, p2pOk: false, relayOk: false };
+  inputN: { bomb: 0, special: 0, super: 0, build: 0 }, buildReq: null, lastPacked: null, p2pOk: false, relayOk: false };
 function readName() {
   const v = ($('nameIn')?.value ?? myName ?? '').trim().slice(0, 10) || 'プレイヤー';
   myName = v;
@@ -1634,16 +2179,17 @@ function readName() {
 function netClose() {
   const peer = net.peer, relays = [net.relay, ...net.relays];
   net.mode = 'offline'; net.peer = null; net.relay = null; net.relays = []; net.token = null; net.conn = null; net.conns = new Map(); net.lobby = [];
-  net.p2pOk = net.relayOk = false;
+  net.p2pOk = net.relayOk = false; net.rc = null; net.relayNote = '';
   try { peer?.destroy(); } catch {}
   for (const r of relays) try { r?.end(true); } catch {}
 }
 function netStatus(msg) {
   overlay(`<div class="logo-en">ONLINE</div><h1 style="font-size:40px">${msg}</h1><div><span class="btn sub" data-a="title">もどる</span></div>`);
 }
+const CODE_LEN = 8;
 function makeCode() {
-  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({ length: 4 }, () => A[Math.floor(rand() * A.length)]).join('');
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint8Array(CODE_LEN));
+  return Array.from(r, v => A[v % A.length]).join('');
 }
 const asTyped = (x, T) => x instanceof T ? x : x instanceof ArrayBuffer ? new T(x) : ArrayBuffer.isView(x) ? new T(x.buffer.slice(x.byteOffset, x.byteOffset + x.byteLength)) : new T(x || []);
 
@@ -1668,43 +2214,58 @@ function hostRoom() {
     });
     peer.on('error', err => { if (net.token === token && err.type === 'unavailable-id') hostRoom(); });
   }
-  // 中継（MQTT）：参加者がどのブローカーにつないでも届くよう、ホストは全部で待ち受ける
-  for (const url of MQTT_URLS) {
-    if (typeof mqtt === 'undefined') break;
-    const c = mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 3000 });
-    c.once('connect', () => {
-    if (net.token !== token) { c.end(true); return; }
-    net.relays.push(c);
-    c.subscribe(topicOf(net.code, 'up'), () => { net.relayOk = true; renderLobby(); });
-    c.on('message', (topic, payload) => {
-      if (net.token !== token) return;
-      let d;
-      try { d = decodeMsg(payload.toString()); } catch { return; }
-      const id = String(d?.from || '');
-      if (!id) return;
-      let conn = net.conns.get(id);
-      if (!conn) {
-        if (d.t !== 'hello') return;
-        conn = { peer: id, open: true, relay: c, send: m => c.publish(topicOf(net.code, 'down'), encodeMsg({ ...m, to: id })) };
-        net.conns.set(id, conn);
-      }
-      conn.lastSeen = performance.now();
-      hostOnData(conn, d);
-    });
-    });
-    c.on('error', () => {});
-  }
+  // 中継（MQTT）：参加者がどのブローカーにつないでも届くよう、ホストは全部で待ち受ける。通信は暗号化する
+  if (typeof mqtt === 'undefined' || !cryptoOk()) { net.relayNote = 'この開き方では使えません'; renderLobby(); return; }
+  roomCrypto(net.code).then(rc => {
+    if (net.token !== token) return;
+    net.rc = rc; net.hostSeq = 0;
+    for (const url of MQTT_URLS) {
+      const c = mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 3000 });
+      const recv = serialQueue();
+      c.once('connect', () => {
+        if (net.token !== token) { c.end(true); return; }
+        net.relays.push(c);
+        c.relaySend = serialQueue();
+        c.subscribe(relayTopic(rc, 'up'), () => { net.relayOk = true; renderLobby(); });
+        c.on('message', (topic, payload) => recv(async () => {
+          if (net.token !== token) return;
+          const d = await openMsg(rc, payload);
+          const id = str(d.from, 64), seq = +d.seq || 0;
+          if (!id) return;
+          let conn = net.conns.get(id);
+          if (!conn) {
+            if (d.t !== 'hello') return;
+            conn = { peer: id, open: true, relay: c, lastSeq: -1, send: m => relayPublish(c, rc, 'down', { ...m, to: id, hs: ++net.hostSeq }) };
+            net.conns.set(id, conn);
+          }
+          if (seq <= conn.lastSeq) return;   // 同じ通信の送り直しは無視
+          conn.lastSeq = seq;
+          conn.lastSeen = performance.now();
+          hostOnData(conn, d);
+        }));
+      });
+      c.on('error', () => {});
+    }
+  });
+}
+function relayPublish(c, rc, dir, msg) {
+  c.relaySend(async () => c.publish(relayTopic(rc, dir), await sealMsg(rc, msg)));
 }
 function hostOnData(conn, d) {
   if (!d || typeof d !== 'object') return;
+  // 1秒に120通を超える送りすぎは無視する
+  const now = performance.now();
+  if (!conn.rateT || now - conn.rateT > 1000) { conn.rateT = now; conn.rateN = 0; }
+  if (++conn.rateN > 120) return;
   const id = conn.peer;
   if (d.t === 'hello') {
     if (state !== 'lobby') { conn.send({ t: 'reject', msg: '試合中です。終わってから入ってね' }); return; }
     if (net.lobby.length >= 8 && !net.lobby.some(p => p.id === id)) { conn.send({ t: 'reject', msg: 'ルームが満員です' }); return; }
     net.lobby = net.lobby.filter(p => p.id !== id);
-    net.lobby.push({ id, name: String(d.name || 'ゲスト').slice(0, 10), weapon: WEAPON_KEYS.includes(d.weapon) ? d.weapon : 'shooter' });
+    const name = str(d.name, 10) || 'ゲスト';
+    net.lobby.push({ id, name, weapon: WEAPON_KEYS.includes(d.weapon) ? d.weapon : 'shooter' });
     broadcastLobby();
-    toast(`${String(d.name || 'ゲスト').slice(0, 10)} が参加しました`, 1200, 24);
+    toast(`${name} が参加しました`, 1200, 24);
   } else if (d.t === 'weapon' && WEAPON_KEYS.includes(d.w)) {
     const p = net.lobby.find(p => p.id === id);
     if (p) { p.weapon = d.w; broadcastLobby(); }
@@ -1721,7 +2282,7 @@ function hostDrop(id) {
   else {
     net.lobby = net.lobby.filter(p => p.id !== id);
     const e = entities.find(e => e.id === id);
-    if (e) { e.ctrl = 'bot'; emit({ t: 'feed', html: `${escapeHtml(e.name)} が切断（AIが代わりに操作）` }); }
+    if (e) { e.ctrl = 'bot'; emit({ t: 'feed', parts: [{ text: e.name, team: e.team }, { text: ' が切断（AIが代わりに操作）', team: 0 }] }); }
   }
 }
 function broadcast(msg) {
@@ -1730,17 +2291,21 @@ function broadcast(msg) {
     if (!c.open) continue;
     if (c.relay) brokers.add(c.relay); else c.send(msg);
   }
-  if (brokers.size) { const payload = encodeMsg(msg); for (const b of brokers) b.publish(topicOf(net.code, 'down'), payload); }
+  if (brokers.size && net.rc) {
+    const m = { ...msg, hs: ++net.hostSeq };
+    for (const b of brokers) relayPublish(b, net.rc, 'down', m);
+  }
 }
 function broadcastLobby() { broadcast({ t: 'lobby', code: net.code, players: net.lobby }); renderLobby(); }
 function renderLobby() {
   if (state !== 'lobby') return;
   const me = net.lobby.find(p => p.id === net.myId);
   overlay(`<div class="logo-en">ONLINE LOBBY</div>
-    <div class="code-box glass"><div class="en">ROOM CODE</div><div class="code num">${escapeHtml(net.code)}</div>
+    <div class="code-box glass"><div class="en">ROOM CODE</div><div class="code num">${escapeHtml(net.code.slice(0, 4) + ' ' + net.code.slice(4))}</div>
       <div class="hint">このコードを友達に伝えよう（最大8人・足りない分はAIが入ります）</div>
-      ${net.mode === 'host' ? `<div class="hint">通信：P2P ${net.p2pOk ? '✅' : '⏳'}　中継 ${net.relayOk ? '✅' : '⏳'}</div>`
-        : `<div class="hint">接続方式：${net.conn?.relay ? '中継サーバー経由' : 'P2P（直接）'}</div>`}</div>
+      ${net.mode === 'host' ? `<div class="hint">通信：P2P ${net.p2pOk ? '✅' : '⏳'}　中継（暗号化） ${net.relayNote ? escapeHtml(net.relayNote) : net.relayOk ? '✅' : '⏳'}</div>`
+        : `<div class="hint">接続方式：${net.conn?.relay ? '中継サーバー経由（暗号化）' : 'P2P（直接・暗号化）'}</div>`}
+      <div class="hint" style="color:#ffd27a">⚠️ つながった相手にはIPアドレスが伝わります。コードは信頼できる友達にだけ教えてね</div></div>
     <div class="players glass">${net.lobby.map((p, i) => `<div class="pl"><span class="dot" style="background:${i % 2 === 0 ? '#ff5400' : '#1e5aff'}"></span>
       ${escapeHtml(p.name)}${p.id === 'host' ? ' 👑' : ''}${p.id === net.myId ? '（あなた）' : ''}<span class="w">${WEAPONS[p.weapon]?.name || ''}</span></div>`).join('')}</div>
     <div class="cards">${weaponCards(me?.weapon)}</div>
@@ -1768,11 +2333,12 @@ function hostBackToLobby() {
   net.lobby = net.lobby.filter(p => p.id === 'host' || net.conns.has(p.id));
   broadcastLobby();
 }
+const ENT_STRIDE = 22;   // 1キャラあたりの送信データ数
 function hostSend() {
-  const ents = new Float32Array(entities.length * 16);
-  entities.forEach((e, k) => ents.set([e.pos.x, e.pos.z, e.y, e.yaw, e.vel.x, e.vel.z, e.hp, e.ink, e.special, e.alive ? 1 : 0, e.diving ? 1 : 0, e.charge, e.aim.x, e.aim.y, e.aim.z, e.kills], k * 16));
+  const ents = new Float32Array(entities.length * ENT_STRIDE);
+  entities.forEach((e, k) => ents.set([e.pos.x, e.pos.z, e.y, e.yaw, e.vel.x, e.vel.z, e.hp, e.ink, e.special, e.alive ? 1 : 0, e.diving ? 1 : 0, e.charge, e.aim.x, e.aim.y, e.aim.z, e.kills, e.superT, e.superUsed, e.superType, e.nextSuper, e.wood, e.stone], k * ENT_STRIDE));
   const proj = new Float32Array(projectiles.length * 5);
-  projectiles.forEach((p, k) => proj.set([p.kind === 'bomb' ? 1 : 0, p.team, p.pos.x, p.pos.y, p.pos.z], k * 5));
+  projectiles.forEach((p, k) => proj.set([{ bomb: 1, mega: 2, meteor: 3, homing: 4 }[p.kind] || 0, p.team, p.pos.x, p.pos.y, p.pos.z], k * 5));
   const packed = packGrid(), diff = [];
   for (let i = 0; i < packed.length; i++) if (packed[i] !== net.lastPacked[i]) diff.push(i * 256 + packed[i]);
   net.lastPacked = packed;
@@ -1783,19 +2349,26 @@ function remoteInput(e) {
   const r = e.remote;
   const inp = { mx: 0, mz: 0, aim: e.aim.clone(), fire: false, bomb: false, special: false, dive: false, jump: false };
   if (!r) return inp;
-  inp.mx = +r.mx || 0; inp.mz = +r.mz || 0;
+  inp.mx = num(r.mx, -1, 1, 0); inp.mz = num(r.mz, -1, 1, 0);
   const l = Math.hypot(inp.mx, inp.mz);
   if (l > 1) { inp.mx /= l; inp.mz /= l; }
-  if (Array.isArray(r.a)) inp.aim.set(+r.a[0] || 0, +r.a[1] || 0, +r.a[2] || 0);
+  if (Array.isArray(r.a)) inp.aim.set(num(r.a[0], -50, W + 50, e.pos.x), num(r.a[1], -10, 40, 0), num(r.a[2], -50, D + 50, e.pos.z));
   inp.fire = !!r.f; inp.dive = !!r.d; inp.jump = !!r.j;
-  if (r.b !== e.lastBombN) { inp.bomb = r.b > e.lastBombN; e.lastBombN = r.b; }
-  if (r.s !== e.lastSpecialN) { inp.special = r.s > e.lastSpecialN; e.lastSpecialN = r.s; }
+  const cnt = v => Math.floor(num(v, 0, 1e9, 0));
+  const b = cnt(r.b), sp = cnt(r.s), u = cnt(r.u), bn = cnt(r.bn);
+  if (b !== e.lastBombN) { inp.bomb = b > e.lastBombN; e.lastBombN = b; }
+  if (sp !== e.lastSpecialN) { inp.special = sp > e.lastSpecialN; e.lastSpecialN = sp; }
+  if (u !== e.lastSuperN) { inp.super = u > e.lastSuperN; e.lastSuperN = u; }
+  if (bn !== e.lastBuildN) {
+    if (bn > e.lastBuildN) inp.build = { piece: Math.floor(num(r.bp, 0, PIECES.length - 1, 0)), mat: r.bm === 'stone' ? 'stone' : 'wood' };
+    e.lastBuildN = bn;
+  }
   return inp;
 }
 
 function joinRoom() {
-  const code = ($('codeIn')?.value || '').trim().toUpperCase();
-  if (code.length !== 4) { toast('4文字のコードを入れてね', 1200, 28); return; }
+  const code = ($('codeIn')?.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== CODE_LEN) { toast(`${CODE_LEN}文字のコードを入れてね`, 1200, 28); return; }
   const name = readName();
   netClose();
   const token = net.token = {};
@@ -1807,26 +2380,32 @@ function joinRoom() {
     settled = true;
     try { net.peer?.destroy(); } catch {}
     net.peer = null; net.conn = null;
-    netStatus('中継サーバー経由で接続中…');
-    const key = 'r' + Math.random().toString(36).slice(2, 10);
-    relayConnect(c => {
+    if (typeof mqtt === 'undefined' || !cryptoOk()) { netStatus('直接つながらず、この開き方では中継も使えません<br><span style="font-size:16px">https のページか、ファイルを直接開いて試してね</span>'); return; }
+    netStatus('中継サーバー経由で接続中…（暗号化）');
+    const key = 'r' + [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, '0')).join('');
+    roomCrypto(code).then(rc => relayConnect(c => {
       if (net.token !== token) { c.end(true); return; }
-      net.relay = c; net.myId = key; net.code = code;
-      c.on('message', (topic, payload) => {
+      net.relay = c; net.myId = key; net.code = code; net.rc = rc;
+      let lastHs = -1, seq = 0;
+      const recv = serialQueue();
+      c.relaySend = serialQueue();
+      c.on('message', (topic, payload) => recv(async () => {
         if (net.token !== token) return;
-        let d;
-        try { d = decodeMsg(payload.toString()); } catch { return; }
-        if (!d || (d.to && d.to !== key)) return;
+        const d = await openMsg(rc, payload);
+        if (d.to && d.to !== key) return;
+        const hs = +d.hs || 0;
+        if (hs <= lastHs) return;   // 同じ通信の送り直しは無視
+        lastHs = hs;
         net.hostSeen = performance.now();
         net.mode = 'client';
         clientOnData(d);
-      });
-      c.subscribe(topicOf(code, 'down'), () => {
-        net.conn = { open: true, relay: true, send: m => c.publish(topicOf(code, 'up'), encodeMsg({ ...m, from: key })) };
+      }));
+      c.subscribe(relayTopic(rc, 'down'), () => {
+        net.conn = { open: true, relay: true, send: m => relayPublish(c, rc, 'up', { ...m, from: key, seq: ++seq }) };
         hello();
         setTimeout(() => { if (net.token === token && net.mode !== 'client') netStatus('ルームが見つかりません'); }, 9000);
       });
-    }, () => { if (net.token === token) netStatus('接続できませんでした'); });
+    }, () => { if (net.token === token) netStatus('接続できませんでした'); }));
   };
   if (typeof Peer === 'undefined') { useRelay(); return; }
   // まずP2P（遅延が少ない）を試し、6秒でつながらなければ中継へ
@@ -1856,16 +2435,23 @@ function joinRoom() {
 function clientOnData(d) {
   if (!d || typeof d !== 'object') return;
   switch (d.t) {
-    case 'reject': { const msg = escapeHtml(d.msg); netClose(); netStatus(msg); break; }
+    case 'reject': { const msg = escapeHtml(str(d.msg, 60)); netClose(); netStatus(msg); break; }
     case 'ping': break;
     case 'lobby':
-      net.lobby = d.players; net.code = d.code;
+      if (!Array.isArray(d.players)) break;
+      net.lobby = d.players.slice(0, 8).map(p => ({ id: str(p?.id, 64), name: str(p?.name, 10) || 'ゲスト', weapon: WEAPON_KEYS.includes(p?.weapon) ? p.weapon : 'shooter' }));
       if (state !== 'lobby') { document.exitPointerLock?.(); state = 'lobby'; setupFromRoster(buildRoster([]), null); setHud(false); }
       renderLobby();
       break;
     case 'start': {
-      setupFromRoster(d.roster, net.myId);
-      const g = asTyped(d.grid, Uint8Array);
+      if (!Array.isArray(d.roster) || !d.roster.length) break;
+      const roster = d.roster.slice(0, 8).map((r, i) => ({
+        id: str(r?.id, 64) || 'p' + i, name: str(r?.name, 10) || 'ゲスト', weapon: WEAPON_KEYS.includes(r?.weapon) ? r.weapon : 'shooter',
+        team: r?.team === 2 ? 2 : 1, ctrl: r?.ctrl === 'bot' ? 'bot' : 'human',
+      }));
+      setupFromRoster(roster, net.myId);
+      let g;
+      try { g = asTyped(d.grid, Uint8Array); } catch { g = new Uint8Array(0); }
       for (let i = 0; i < g.length && i < owner.length; i++) unpackCell(i, g[i]);
       computeConnected(); texDirty = true;
       beginPlay(true);
@@ -1876,42 +2462,46 @@ function clientOnData(d) {
   }
 }
 function applySnap(d) {
-  const E = asTyped(d.ents, Float32Array);
+  let E, P, diff;
+  try { E = asTyped(d.ents, Float32Array); P = asTyped(d.proj, Float32Array); diff = asTyped(d.diff, Uint32Array); } catch { return; }
   entities.forEach((e, k) => {
-    const o = k * 16;
-    if (o + 16 > E.length) return;
-    e.netPos.set(E[o], 0, E[o + 1]); e.netY = E[o + 2]; e.netYaw = E[o + 3];
-    e.vel.set(E[o + 4], 0, E[o + 5]);
-    e.hp = E[o + 6]; e.ink = E[o + 7]; e.special = E[o + 8];
+    const o = k * ENT_STRIDE;
+    if (o + ENT_STRIDE > E.length) return;
+    const f = (i, lo, hi) => num(E[o + i], lo, hi, 0);
+    e.netPos.set(f(0, -5, W + 5), 0, f(1, -5, D + 5)); e.netY = f(2, 0, 30); e.netYaw = f(3, -100, 100);
+    e.vel.set(f(4, -30, 30), 0, f(5, -30, 30));
+    e.hp = f(6, 0, 100); e.ink = f(7, 0, 100); e.special = f(8, 0, 100);
     const alive = E[o + 9] > 0.5;
     if (alive && !e.alive) { e.pos.copy(e.netPos); e.y = e.netY; e.yaw = e.netYaw; }   // 復活地点へはワープ
-    e.alive = alive; e.diving = E[o + 10] > 0.5; e.charge = E[o + 11];
-    e.aim.set(E[o + 12], E[o + 13], E[o + 14]); e.kills = E[o + 15];
+    e.alive = alive; e.diving = E[o + 10] > 0.5; e.charge = f(11, 0, 1);
+    e.aim.set(f(12, -50, W + 50), f(13, -10, 40), f(14, -50, D + 50)); e.kills = Math.floor(f(15, 0, 999));
+    e.superT = f(16, 0, 60); e.superUsed = Math.floor(f(17, 0, 999)); e.superType = Math.floor(f(18, 0, SPECIALS.length - 1));
+    e.nextSuper = Math.floor(num(E[o + 19], -1, SPECIALS.length - 1, -1)); e.wood = f(20, 0, MAX_MAT); e.stone = f(21, 0, MAX_MAT);
   });
-  const P = asTyped(d.proj, Float32Array), n = Math.floor(P.length / 5);
+  const n = Math.min(1000, Math.floor(P.length / 5));
   while (projectiles.length < n) { const mesh = new THREE.Mesh(blobGeo, blobMats[1]); scene.add(mesh); projectiles.push({ mesh }); }
   while (projectiles.length > n) scene.remove(projectiles.pop().mesh);
   for (let k = 0; k < n; k++) {
-    const o = k * 5, bomb = P[o] > 0.5, team = P[o + 1] > 1.5 ? 2 : 1, mesh = projectiles[k].mesh;
+    const o = k * 5, kind = Math.round(P[o]), bomb = kind === 1 || kind === 3, mega = kind === 2, team = P[o + 1] > 1.5 ? 2 : 1, mesh = projectiles[k].mesh;
     mesh.material = bomb ? dropMats[team] : blobMats[team];
     mesh.geometry = bomb ? M('bombGeo', () => new THREE.IcosahedronGeometry(0.2, 1)) : blobGeo;
-    mesh.position.set(P[o + 2], P[o + 3], P[o + 4]);
+    mesh.position.set(num(P[o + 2], -20, W + 20, 0), num(P[o + 3], -5, 40, 0), num(P[o + 4], -20, D + 20, 0));
+    mesh.scale.setScalar(mega ? 2.6 : kind === 3 ? 2.2 : kind === 4 ? 1.8 : 1);
   }
-  const diff = asTyped(d.diff, Uint32Array);
-  if (diff.length) {
+  if (diff.length && diff.length <= owner.length) {
     for (const v of diff) { const i = Math.floor(v / 256); if (i < owner.length) unpackCell(i, v & 255); }
     computeConnected();
     texDirty = true;
   }
-  matchLeft = +d.left || 0;
-  if (Array.isArray(d.ev)) for (const ev of d.ev) applyEvent(ev);
+  matchLeft = num(d.left, 0, MATCH, 0);
+  if (Array.isArray(d.ev)) for (const ev of d.ev.slice(0, 300)) { const safe = sanitizeEvent(ev); if (safe) applyEvent(safe); }
 }
 function clientTick(dt) {
   const inp = state === 'play' && player ? playerInput() : null;
   net.sendT -= dt;
   if (inp && net.sendT <= 0 && net.conn?.open) {
     net.sendT = net.conn.relay ? 1 / 20 : 1 / 30;
-    net.conn.send({ t: 'in', mx: inp.mx, mz: inp.mz, a: inp.aim.toArray(), f: inp.fire, b: net.inputN.bomb, s: net.inputN.special, d: inp.dive, j: inp.jump });
+    net.conn.send({ t: 'in', mx: inp.mx, mz: inp.mz, a: inp.aim.toArray(), f: inp.fire, b: net.inputN.bomb, s: net.inputN.special, u: net.inputN.super, bn: net.inputN.build, bp: net.buildReq?.piece ?? 0, bm: net.buildReq?.mat ?? 'wood', d: inp.dive, j: inp.jump });
   }
   // 自分のキャラだけは入力ですぐ動かし、ホストの位置へゆっくり寄せる（遅延を感じにくくする）
   if (inp && player.alive) {
@@ -1947,6 +2537,52 @@ function toast(msg, ms = 1500, size = 48) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.style.opacity = 0, ms);
 }
+function selectPiece(i) {
+  buildPiece = i === buildPiece ? -1 : i;
+  renderBuildBar();
+}
+function toggleBuildMat() {
+  buildMatSel = buildMatSel === 'wood' ? 'stone' : 'wood';
+  renderBuildBar();
+}
+const costText = c => [c.wood ? `🪵${c.wood}` : '', c.stone ? `🪨${c.stone}` : ''].join('');
+function renderBuildBar() {
+  if (!player) return;
+  $('buildbar').innerHTML = PIECES.map((p, i) => {
+    const c = p.cost(buildMatSel), can = (c.wood || 0) <= player.wood && (c.stone || 0) <= player.stone;
+    return `<div class="bslot${i === buildPiece ? ' sel' : ''}${can ? '' : ' no'}" data-b="${i}"><i>${i + 1}</i><b>${p.emoji}</b>${p.name}<em>${costText(c)}</em></div>`;
+  }).join('') + `<div class="bslot mat" data-bm="1"><i>C</i><b>${buildMatSel === 'wood' ? '🪵' : '🪨'}</b>${buildMatSel === 'wood' ? '木で建築' : '石で建築'}</div>`;
+}
+// スマホ：建築バーをタップするとその場で建てる
+$('buildbar').addEventListener('pointerdown', e => {
+  if (state !== 'play' || paused) return;
+  const slot = e.target.closest('[data-b]'), matBtn = e.target.closest('[data-bm]');
+  if (!slot && !matBtn) return;
+  e.preventDefault();
+  touch.last = performance.now();
+  if (matBtn) { toggleBuildMat(); return; }
+  buildPiece = +slot.dataset.b;
+  buildQueued = true;
+  renderBuildBar();
+  if (isTouch) setTimeout(() => { buildPiece = -1; renderBuildBar(); }, 200);
+});
+// パソコン：建つ場所を半透明で予告（緑＝建てられる、赤＝建てられない）
+const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x7dff6b, transparent: true, opacity: 0.3, depthWrite: false }));
+ghost.visible = false;
+scene.add(ghost);
+function updateGhost() {
+  ghost.visible = false;
+  if (state !== 'play' || paused || !player?.alive || buildPiece < 0 || isTouch) return;
+  const plan = planBuild(player, buildPiece, buildMatSel);
+  if (!plan) return;
+  const s = plan.s;
+  ghost.visible = true;
+  ghost.scale.set(s.x1 - s.x0, Math.max(0.15, s.h - s.y0), s.z1 - s.z0);
+  ghost.position.set((s.x0 + s.x1) / 2, (s.y0 + s.h) / 2, (s.z0 + s.z1) / 2);
+  ghost.material.color.set(plan.ok ? 0x7dff6b : 0xff5a5a);
+}
+let lastBarKey = '';
+
 function updateHud() {
   const pa = score[1] / paintable * 100, pb = score[2] / paintable * 100;
   $('pctA').textContent = pa.toFixed(0) + '%'; $('pctB').textContent = pb.toFixed(0) + '%';
@@ -1961,6 +2597,32 @@ function updateHud() {
   $('spfill').style.width = player.special + '%'; $('spnum').textContent = Math.floor(player.special);
   $('spfill').classList.toggle('full', player.special >= 100);
   $('tSp').classList.toggle('ready', player.special >= 100);
+  // スペシャル武器
+  const charges = superCharges(player), toNext = SUPER.killsPerCharge - player.kills % SUPER.killsPerCharge;
+  if (superActive(player)) {
+    const sp = specialOf(player);
+    $('suplbl').textContent = `${sp.emoji} ${sp.name}`;
+    $('supnum').textContent = `発動中 ${Math.ceil(player.superT)}秒`;
+    $('supfill').style.width = player.superT / sp.duration * 100 + '%';
+    $('tSuper').querySelector('b').textContent = sp.emoji;
+  } else if (charges > 0) {
+    const sp = nextSpecialOf(player);
+    $('suplbl').textContent = `${sp.emoji} ${sp.name} [F]`;
+    $('supnum').textContent = charges > 1 ? `使える！ ×${charges}` : '使える！';
+    $('supfill').style.width = '100%';
+    $('tSuper').querySelector('b').textContent = sp.emoji;
+  } else {
+    $('suplbl').textContent = '🎁 SP武器 [F]';
+    $('tSuper').querySelector('b').textContent = '🎁';
+    $('supnum').textContent = `あと${toNext}キル`;
+    $('supfill').style.width = (SUPER.killsPerCharge - toNext) / SUPER.killsPerCharge * 100 + '%';
+  }
+  $('supfill').classList.toggle('ready', charges > 0 && !superActive(player));
+  $('tSuper').classList.toggle('ready', charges > 0 && !superActive(player));
+  $('tSuper').classList.toggle('on', superActive(player));
+  $('woodnum').textContent = Math.floor(player.wood); $('stonenum').textContent = Math.floor(player.stone);
+  const barKey = `${Math.floor(player.wood)}|${Math.floor(player.stone)}|${buildPiece}|${buildMatSel}`;
+  if (barKey !== lastBarKey) { lastBarKey = barKey; renderBuildBar(); }
   $('inkring').setAttribute('stroke-dashoffset', 138.2 * (1 - player.ink / 100));
   $('inkring').setAttribute('stroke', player.ink < 20 ? '#ff4040' : inkCol);
 }
@@ -1974,6 +2636,12 @@ addEventListener('keydown', e => {
   if (state !== 'play' || paused || e.repeat) return;
   if (e.code === 'KeyQ') bombQueued = true;
   if (e.code === 'KeyE') specialQueued = true;
+  if (e.code === 'KeyF') superQueued = true;
+  const digit = e.code.match(/^Digit([1-6])$/);
+  if (digit) selectPiece(+digit[1] - 1);
+  if (e.code === 'KeyX') selectPiece(-1);
+  if (e.code === 'KeyC') toggleBuildMat();
+  if (e.code === 'KeyG' && buildPiece >= 0) buildQueued = true;
 });
 addEventListener('keyup', e => keys[e.code] = false);
 // ---- タッチ操作 ----
@@ -2031,6 +2699,7 @@ function capture(el, e) { try { el.setPointerCapture(e.pointerId); } catch {} }
   tap('tBomb', () => { bombQueued = true; });
   tap('tJump', () => { touch.jumpUntil = performance.now() + 150; });
   tap('tSp', () => { specialQueued = true; });
+  tap('tSuper', () => { superQueued = true; });
   tap('tPause', () => pauseGame());
 
   // 画面をなぞってカメラを回す（ボタン以外の場所ならどこでも）
@@ -2063,7 +2732,7 @@ addEventListener('mousedown', e => {
   if (state !== 'play' || paused || fromTouch()) return;
   if (!testMode && !document.pointerLockElement) tryPointerLock(false);
   if (e.button === 0) mouseDown = true;
-  if (e.button === 2) bombQueued = true;
+  if (e.button === 2) { if (buildPiece >= 0) buildQueued = true; else bombQueued = true; }
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; });
 addEventListener('contextmenu', e => e.preventDefault());
@@ -2077,6 +2746,7 @@ function simulate(dt) {
     stepEntity(e, inp, dt);
   }
   updateProjectiles(dt);
+  updateStructures(dt);
   rootT -= dt;
   if (rootT <= 0) { rootT = 0.5; tickRoots(); }
 }
@@ -2134,6 +2804,8 @@ function loop(now) {
     camera.lookAt(W / 2, 0, D / 2);
   }
   for (const e of entities) updateVisual(e, dt);
+  animateStructures(dt);
+  updateGhost();
   if (testMode && window.__camHook) window.__camHook(camera, entities);
   clouds.rotation.y += dt * 0.004;
   updateEffects(dt);
@@ -2145,7 +2817,7 @@ function loop(now) {
 }
 showTitle();
 requestAnimationFrame(loop);
-if (testMode) window.__game = { get player() { return player; }, get entities() { return entities; }, score, net, get state() { return state; }, look(y, p) { camYaw = y; camPitch = p; } };
+if (testMode) window.__game = { structures, doBuild, groundAt, planBuild, damageStructure, get player() { return player; }, get entities() { return entities; }, score, net, get state() { return state; }, look(y, p) { camYaw = y; camPitch = p; } };
 </script>
 </body>
 </html>
